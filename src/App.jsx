@@ -743,7 +743,7 @@ const AboutPage = () => {
             
             <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-md">
                 <h2 className="text-3xl font-bold mb-4 border-b pb-2">About the Developer</h2>
-                <p className="mb-4">This tool was created by Fidel Munashe Mudzamba dedicated to making renewable energy more accessible. The goal is to empower individuals to make informed decisions about their energy independence.</p>
+                <p className="mb-4">This tool was created by <b>Fidel Munashe Mudzamba</b> dedicated to making renewable energy more accessible. The goal is to empower individuals to make informed decisions about their energy independence.</p>
                 <div className="flex space-x-6">
                     <a href="https://fidelmudzamba.vercel.app" target="_blank" className="text-blue-500 hover:underline text-lg"><i className="fab fa-solid fa-globe mr-2"></i>Website/Portfolio</a>
                     <a href="https://github.com" target="_blank" className="text-blue-500 hover:underline text-lg"><i className="fab fa-github mr-2"></i>GitHub</a>

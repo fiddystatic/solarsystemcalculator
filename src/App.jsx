@@ -736,13 +736,14 @@ const AboutPage = () => {
                     <li><strong>Choose System Voltage:</strong> Select your preferred DC system voltage (12V, 24V, or 48V). Higher voltage is generally more efficient for larger systems.</li>
                     <li><strong>Calculate:</strong> Hit the "Calculate System Specs" button.</li>
                     <li><strong>Review Output:</strong> Scroll down to the "Output Summary" to see the recommended sizes for your inverter, battery bank, solar panels, and charge controller. Use the charts for a visual breakdown.</li>
-                     <li><strong>Check Safe Specs:</strong> For extra reliability, especially in areas with frequent bad weather, click "Show Safe Specs" for oversized recommendations.</li>
+                    <li><strong>Check Safe Specs:</strong> For extra reliability, especially in areas with frequent bad weather, click "Show Safe Specs" for oversized recommendations.</li>
+                    <li><strong>Custom System Check:</strong> For tailored recommendations based on your specific needs, use the "Custom System Check" feature.</li>
                 </ol>
             </div>
             
             <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-md">
                 <h2 className="text-3xl font-bold mb-4 border-b pb-2">About the Developer</h2>
-                <p className="mb-4">This tool was created by a passionate developer dedicated to making renewable energy more accessible. The goal is to empower individuals to make informed decisions about their energy independence.</p>
+                <p className="mb-4">This tool was created by Fidel Munashe Mudzamba dedicated to making renewable energy more accessible. The goal is to empower individuals to make informed decisions about their energy independence.</p>
                 <div className="flex space-x-6">
                     <a href="https://fidelmudzamba.vercel.app" target="_blank" className="text-blue-500 hover:underline text-lg"><i className="fab fa-solid fa-globe mr-2"></i>Website/Portfolio</a>
                     <a href="https://github.com" target="_blank" className="text-blue-500 hover:underline text-lg"><i className="fab fa-github mr-2"></i>GitHub</a>

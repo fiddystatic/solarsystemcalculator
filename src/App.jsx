@@ -68,8 +68,8 @@ const App = () => {
                     {page === 'calculator' && (
                         <>
                             <h2 className="text-lg font-semibold mb-4 border-b border-gray-300 dark:border-gray-600 pb-2 flex items-center justify-between">
-                                <span className="label">Sections</span>
                                 <i className="fas fa-stream icon-only-label"></i>
+                                <span className="label">Sections</span>
                             </h2>
                             <nav className="flex flex-col space-y-2">
                                 <IconNavLink href="#load-analysis" iconClass="fa-bolt" label="Load Analysis" />
@@ -93,6 +93,7 @@ const App = () => {
             <CustomSystemCheckModal 
                 isOpen={isCustomCalcOpen} 
                 onClose={() => setIsCustomCalcOpen(false)}
+                label="Close"
             />
         </div>
     );
@@ -129,8 +130,15 @@ const CalculatorPage = ({ setIsCustomCalcOpen }) => {
     const [batteryType, setBatteryType] = useState('Lithium');
     /* @tweakable Default type for a new device. Options: 'AC' or 'DC'. */
     const defaultDeviceType = 'AC';
-    const [devices, setDevices] = useState([{ name: 'LED Bulb', power: 10, hours: 5, type: defaultDeviceType }]);
+    /* @tweakable Default time of use for a new device. Options: 'Day', 'Night', 'Both'. */
+    const defaultTimeOfUse = 'Day';
+    /* @tweakable Default quantity for a new device. */
+    const defaultDeviceQuantity = 1;
+    /* @tweakable Default state for a new device, including power type and values. */
+    const initialDeviceState = { name: 'LED Bulb', powerType: 'AC', power: 10, volts: 0, amps: 0, hours: 5, type: defaultDeviceType, timeOfUse: defaultTimeOfUse, dayHours: 5, nightHours: 0, quantity: defaultDeviceQuantity };
+    const [devices, setDevices] = useState([initialDeviceState]);
     const [daysOfAutonomy, setDaysOfAutonomy] = useState(1);
+    /* @tweakable Default peak sun hours per day */
     const [sunHours, setSunHours] = useState(5);
     const [output, setOutput] = useState(null);
     const [showSafeSpecs, setShowSafeSpecs] = useState(false);
@@ -159,48 +167,130 @@ const CalculatorPage = ({ setIsCustomCalcOpen }) => {
         '48V': { min: 2000, max: 4000 },
     };
 
-    const totalWattHours = useMemo(() => devices.reduce((acc, dev) => acc + dev.power * dev.hours, 0), [devices]);
-    const totalACWatts = useMemo(() => devices.reduce((acc, dev) => dev.type === 'AC' ? acc + dev.power : acc, 0), [devices]);
+    const { totalDayWh, totalNightWh, totalWattHours, totalAcWh, totalDcWh } = useMemo(() => {
+        let dayWh = 0;
+        let nightWh = 0;
+        let acWh = 0;
+        let dcWh = 0;
+        devices.forEach(dev => {
+            const deviceWatts = dev.powerType === 'AC' ? dev.power : (dev.volts * dev.amps);
+            const quantity = dev.quantity || 1;
+            const deviceDayWh = deviceWatts * dev.dayHours * quantity;
+            const deviceNightWh = deviceWatts * dev.nightHours * quantity;
+            dayWh += deviceDayWh;
+            nightWh += deviceNightWh;
 
-    const addDevice = () => setDevices([...devices, { name: '', power: 0, hours: 0, type: defaultDeviceType }]);
+            if (dev.powerType === 'AC') {
+                acWh += deviceDayWh + deviceNightWh;
+            } else {
+                dcWh += deviceDayWh + deviceNightWh;
+            }
+        });
+        return { totalDayWh: dayWh, totalNightWh: nightWh, totalWattHours: dayWh + nightWh, totalAcWh: acWh, totalDcWh: dcWh };
+    }, [devices]);
+
+    const totalACWatts = useMemo(() => devices.reduce((acc, dev) => {
+        if (dev.powerType === 'AC') {
+            const quantity = dev.quantity || 1;
+            return acc + (dev.power * quantity);
+        }
+        return acc;
+    }, 0), [devices]);
+
+    const addDevice = () => setDevices([...devices, { ...initialDeviceState, name: '', power: 0, hours: 0, dayHours: 0, nightHours: 0 }]);
     const removeDevice = (index) => setDevices(devices.filter((_, i) => i !== index));
     const updateDevice = (index, field, value) => {
         const newDevices = [...devices];
-        newDevices[index][field] = value;
+        const device = { ...newDevices[index] };
+        
+        // Use a temp variable for value to handle parseFloat/parseInt
+        let processedValue = value;
+        if (['power', 'volts', 'amps', 'hours', 'dayHours', 'nightHours', 'quantity'].includes(field)) {
+            processedValue = parseFloat(value) || 0;
+        }
+
+        device[field] = processedValue;
+
+        // When power type changes, reset power-related fields
+        if (field === 'powerType') {
+            device.power = 0;
+            device.volts = 0;
+            device.amps = 0;
+        }
+
+        if (field === 'timeOfUse') {
+            if (processedValue === 'Day') {
+                device.dayHours = device.hours;
+                device.nightHours = 0;
+            } else if (processedValue === 'Night') {
+                device.dayHours = 0;
+                device.nightHours = device.hours;
+            } else if (processedValue === 'Both') {
+                // Keep existing hours if switching to both, or reset if needed
+                const currentTotalHours = parseFloat(device.hours) || 0;
+                device.dayHours = currentTotalHours / 2;
+                device.nightHours = currentTotalHours / 2;
+            }
+        } else if (field === 'hours') {
+            if (device.timeOfUse === 'Day') {
+                device.dayHours = processedValue;
+                device.nightHours = 0;
+            } else if (device.timeOfUse === 'Night') {
+                device.dayHours = 0;
+                device.nightHours = processedValue;
+            }
+            // For 'Both', hours are managed by day/night inputs directly
+        } else if (field === 'dayHours' || field === 'nightHours') {
+            device.hours = device.dayHours + device.nightHours;
+        }
+
+        if (field === 'quantity' && processedValue < 1) {
+            device.quantity = 1;
+        }
+
+        newDevices[index] = device;
         setDevices(newDevices);
     };
 
     const calculate = () => {
         const inverterSize = totalACWatts * inverterSafetyFactor;
-        const requiredEnergy = totalWattHours * daysOfAutonomy;
-        
-        const bSizing = {};
         const bChar = batteryCharacteristics[batteryType];
-        bSizing.main = requiredEnergy / (bChar.efficiency * bChar.dod);
+        
+        // Battery sizing based on NIGHT load only
+        const nightEnergyRequired = totalNightWh * daysOfAutonomy;
+        const requiredBatteryEnergy = nightEnergyRequired / (bChar.efficiency * bChar.dod);
 
-        const allBatterySizing = {
-            'Lithium': requiredEnergy / (batteryCharacteristics['Lithium'].efficiency * batteryCharacteristics['Lithium'].dod),
-            'Lead-Acid': {
-                'Flooded': requiredEnergy / (batteryCharacteristics['Flooded'].efficiency * batteryCharacteristics['Flooded'].dod),
-                'Gel': requiredEnergy / (batteryCharacteristics['Gel'].efficiency * batteryCharacteristics['Gel'].dod),
-                'AGM': requiredEnergy / (batteryCharacteristics['AGM'].efficiency * batteryCharacteristics['AGM'].dod),
+        const allBatterySizing = {};
+        Object.keys(batteryCharacteristics).forEach(type => {
+            const char = batteryCharacteristics[type];
+            if (type === 'Lithium' || type === 'Flooded' || type === 'Gel' || type === 'AGM') {
+                allBatterySizing[type] = (totalNightWh * daysOfAutonomy) / (char.efficiency * char.dod);
             }
-        };
+        });
+        
+        // Solar panel sizing based on DAY load + recharging NIGHT load
+        const energyToRecharge = totalNightWh / bChar.efficiency;
+        const totalEnergyFromPanels = totalDayWh + energyToRecharge;
+        const solarPanelWatts = totalEnergyFromPanels / sunHours;
 
-        const solarPanelWatts = bSizing.main / sunHours;
         const controllerAmps = (solarPanelWatts / systemVoltage) * controllerSafetyFactor;
 
         setOutput({
+            totalDayWh,
+            totalNightWh,
             totalWattHours,
             totalACWatts,
             inverterSize,
-            batterySizing: allBatterySizing, // Keep all for the summary
+            batterySizing: allBatterySizing,
             solarPanelWatts,
             controllerAmps,
             devices,
             sunHours,
             daysOfAutonomy,
             batteryType,
+            systemVoltage,
+            totalAcWh,
+            totalDcWh,
         });
         localStorage.setItem('ssc_totalWattHours', totalWattHours);
         localStorage.setItem('ssc_sunHours', sunHours);
@@ -266,60 +356,112 @@ const CalculatorPage = ({ setIsCustomCalcOpen }) => {
         <>
             <CollapsibleSection title="1. Load Analysis" id="load-analysis">
                 {/* Header Labels */}
-                <div className="hidden md:grid md:grid-cols-12 gap-4 mb-2 px-2 text-sm font-semibold text-gray-600 dark:text-gray-400">
-                    <div className="col-span-4">Device</div>
-                    <div className="col-span-2">Type</div>
-                    <div className="col-span-2">Watts</div>
-                    <div className="col-span-2">Hours</div>
-                    <div className="col-span-2 text-right">Watt Hours</div>
+                <div className="hidden md:grid md:grid-cols-12 gap-2 mb-2 px-2 text-sm font-semibold text-gray-600 dark:text-gray-400">
+                    <div className="col-span-3">Device</div>
+                    <div className="col-span-1 text-center">Qty</div>
+                    <div className="col-span-2">Time of Use</div>
+                    <div className="col-span-2">Power Details</div>
+                    <div className="col-span-2 text-center">Day/Night (h)</div>
+                    <div className="col-span-1 text-right">Wh</div>
+                    <div className="col-span-1"></div>
                 </div>
 
                 {devices.map((device, index) => {
-                    const wattHours = device.power * device.hours;
+                    const deviceWatts = device.powerType === 'AC' ? device.power : (device.volts * device.amps);
+                    const quantity = device.quantity || 1;
+                    const wattHours = deviceWatts * (device.dayHours + device.nightHours) * quantity;
                     return (
-                        <div key={index} className="grid grid-cols-2 md:grid-cols-12 gap-4 mb-4 items-center">
+                        <div key={index} className="grid grid-cols-2 md:grid-cols-12 gap-2 mb-4 items-center">
                             {/* Device Name */}
-                            <div className="col-span-2 md:col-span-4">
-                                <label className="md:hidden text-sm font-medium">Device</label>
+                            <div className="col-span-2 md:col-span-3">
+                                <label className="md:hidden text-xs font-medium">Device</label>
                                 <input type="text" placeholder="Device Name" value={device.name} onChange={e => updateDevice(index, 'name', e.target.value)} className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600" />
                             </div>
+
+                             {/* Quantity */}
+                             <div className="col-span-2 md:col-span-1">
+                                <label className="md:hidden text-xs font-medium">Quantity</label>
+                                <div className="flex items-center">
+                                    <button onClick={() => updateDevice(index, 'quantity', device.quantity - 1)} className="px-2 py-1 border rounded-l bg-gray-200 dark:bg-gray-600 h-[42px]">-</button>
+                                    <input type="number" value={device.quantity} onChange={e => updateDevice(index, 'quantity', e.target.value)} className="w-full p-2 border-t border-b text-center bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 h-[42px]" />
+                                    <button onClick={() => updateDevice(index, 'quantity', device.quantity + 1)} className="px-2 py-1 border rounded-r bg-gray-200 dark:bg-gray-600 h-[42px]">+</button>
+                                </div>
+                            </div>
                             
-                            {/* Type */}
-                            <div className="col-span-1 md:col-span-2">
-                                <label className="md:hidden text-sm font-medium">Type</label>
-                                <select value={device.type} onChange={e => updateDevice(index, 'type', e.target.value)} className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 h-[42px]">
-                                    <option value="AC">AC</option>
-                                    <option value="DC">DC</option>
+                            {/* Time of Use */}
+                            <div className="col-span-2 md:col-span-2">
+                                <label className="md:hidden text-xs font-medium">Time of Use</label>
+                                <select value={device.timeOfUse} onChange={e => updateDevice(index, 'timeOfUse', e.target.value)} className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 h-[42px]">
+                                    <option value="Day">Day</option>
+                                    <option value="Night">Night</option>
+                                    <option value="Both">Both</option>
                                 </select>
                             </div>
 
-                            {/* Power (Watts) */}
-                            <div className="col-span-1 md:col-span-2">
-                                <label className="md:hidden text-sm font-medium">Watts</label>
-                                <input type="number" placeholder="Watts" value={device.power} onChange={e => updateDevice(index, 'power', parseFloat(e.target.value) || 0)} className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600" />
-                            </div>
-
-                            {/* Hours */}
-                            <div className="col-span-1 md:col-span-2">
-                                <label className="md:hidden text-sm font-medium">Hours</label>
-                                <input type="number" placeholder="Hours" value={device.hours} onChange={e => updateDevice(index, 'hours', parseFloat(e.target.value) || 0)} className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600" />
-                            </div>
-
-                            {/* Watt Hours & Remove */}
-                            <div className="col-span-1 md:col-span-2 flex items-center justify-between">
-                                <div className="text-right flex-grow">
-                                    <label className="md:hidden text-sm font-medium">Watt Hours</label>
-                                    <p className="p-2 font-medium whitespace-nowrap">{wattHours.toFixed(1)} Wh</p>
+                             {/* Power Details */}
+                             <div className="col-span-2 md:col-span-2">
+                                <label className="md:hidden text-xs font-medium">Power Details</label>
+                                <div className="flex flex-col gap-2">
+                                    <div className="flex gap-2">
+                                        <select value={device.powerType} onChange={e => updateDevice(index, 'powerType', e.target.value)} className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 h-[42px]">
+                                            <option value="AC">AC (Watts)</option>
+                                            <option value="DC">DC (Volts/Amps)</option>
+                                        </select>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        {device.powerType === 'AC' ? (
+                                            <input type="number" placeholder="Watts" value={device.power} onChange={e => updateDevice(index, 'power', e.target.value)} className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600" />
+                                        ) : (
+                                            <>
+                                                <div className="w-1/2">
+                                                    <label className="md:hidden text-xs font-medium">Volts</label>
+                                                    <input type="number" placeholder="Volts" value={device.volts} onChange={e => updateDevice(index, 'volts', e.target.value)} className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600" />
+                                                </div>
+                                                <div className="w-1/2">
+                                                    <label className="md:hidden text-xs font-medium">Amps</label>
+                                                    <input type="number" placeholder="Amps" value={device.amps} onChange={e => updateDevice(index, 'amps', e.target.value)} className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600" />
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
+                                    {device.powerType === 'DC' && (
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 italic">For DC devices, enter voltage and current (amps). Watts will be calculated automatically.</p>
+                                    )}
                                 </div>
-                                <button onClick={() => removeDevice(index)} className="ml-2 text-red-500 hover:text-red-700"><i className="fas fa-trash"></i></button>
+                            </div>
+
+                             {/* Day/Night Hours */}
+                            <div className="col-span-2 md:col-span-2">
+                                 <div className="flex gap-2">
+                                    <div className="w-1/2">
+                                        <label className="md:hidden text-xs font-medium">Day (h)</label>
+                                        <input type="number" placeholder="Day" value={device.dayHours} disabled={device.timeOfUse === 'Night'} onChange={e => updateDevice(index, 'dayHours', e.target.value)} className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 disabled:bg-gray-200 dark:disabled:bg-gray-600" />
+                                    </div>
+                                    <div className="w-1/2">
+                                        <label className="md:hidden text-xs font-medium">Night (h)</label>
+                                        <input type="number" placeholder="Night" value={device.nightHours} disabled={device.timeOfUse === 'Day'} onChange={e => updateDevice(index, 'nightHours', e.target.value)} className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 disabled:bg-gray-200 dark:disabled:bg-gray-600" />
+                                    </div>
+                                 </div>
+                            </div>
+                            
+                            {/* Watt Hours & Remove */}
+                            <div className="col-span-2 md:col-span-1 flex items-center justify-between">
+                                <div className="text-right flex-grow">
+                                    <label className="md:hidden text-xs font-medium">Watt Hours</label>
+                                    <p className="p-2 font-medium whitespace-nowrap">{wattHours.toFixed(1)}</p>
+                                </div>
+                            </div>
+                            <div className="col-span-2 md:col-span-1 flex items-center justify-center">
+                                <button onClick={() => removeDevice(index)} className="text-red-500 hover:text-red-700"><i className="fas fa-trash"></i></button>
                             </div>
                         </div>
                     );
                 })}
                 <button onClick={addDevice} className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">+ Add Device</button>
-                <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                    <p className="font-bold text-lg">Total Daily Energy: <span className="text-blue-600 dark:text-blue-400">{totalWattHours.toFixed(2)} Wh</span></p>
-                    <p className="font-bold text-lg">Total AC Load: <span className="text-blue-600 dark:text-blue-400">{totalACWatts.toFixed(2)} W</span></p>
+                <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <p className="font-bold text-lg">Day Load: <span className="text-blue-600 dark:text-blue-400">{totalDayWh.toFixed(2)} Wh</span></p>
+                    <p className="font-bold text-lg">Night Load: <span className="text-indigo-600 dark:text-indigo-400">{totalNightWh.toFixed(2)} Wh</span></p>
+                    <p className="font-bold text-lg">Total Daily Load: <span className="text-green-600 dark:text-green-400">{totalWattHours.toFixed(2)} Wh</span></p>
                 </div>
             </CollapsibleSection>
 
@@ -338,7 +480,7 @@ const CalculatorPage = ({ setIsCustomCalcOpen }) => {
                              <p className="text-2xl font-bold text-green-600 dark:text-green-400">
                                 {(totalACWatts * inverterSafetyFactor).toFixed(2)} W
                              </p>
-                             <p className="text-sm text-gray-600 dark:text-gray-400">Based on your {totalACWatts.toFixed(2)}W AC load, {totalWattHours.toFixed(2)}Wh daily usage, and a {((inverterSafetyFactor - 1) * 100).toFixed(0)}% safety factor.</p>
+                             <p className="text-sm text-gray-600 dark:text-gray-400">Based on your {totalACWatts.toFixed(2)}W total AC load and a {((inverterSafetyFactor - 1) * 100).toFixed(0)}% safety factor.</p>
                         </div>
                     )}
                     <div>
@@ -380,7 +522,8 @@ const CalculatorPage = ({ setIsCustomCalcOpen }) => {
                     </select>
                     <p className="text-sm mt-1 text-gray-600 dark:text-gray-400">Select your preferred battery chemistry. This will affect solar panel and controller sizing.</p>
                 </div>
-                 <p className="mt-4">Different battery types have different efficiencies and depths of discharge. This affects the total capacity you need.</p>
+                 <p className="mt-4">Battery sizing is based on your <strong>night load</strong>, as this is when solar panels are not generating power. This ensures you have enough stored energy to last through the night for the specified days of autonomy.</p>
+                 <p className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700"><strong>Formula:</strong> <code>Capacity (Wh) = (Night Load Wh × Days of Autonomy) / (Efficiency × Depth of Discharge)</code></p>
             </CollapsibleSection>
 
             <CollapsibleSection title="4. Solar Panel Sizing" id="solar-panel-sizing">
@@ -389,7 +532,8 @@ const CalculatorPage = ({ setIsCustomCalcOpen }) => {
                     <input type="number" value={sunHours} onChange={e => setSunHours(parseFloat(e.target.value) || 0)} className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600" />
                     <p className="text-sm mt-1 text-gray-600 dark:text-gray-400">Average hours of direct sunlight your location gets. (e.g., 4-6 hours)</p>
                 </div>
-                <p className="mt-2"><strong>Formula:</strong> <code>Solar Panel Watts = Required Battery Wh / Sun Hours</code></p>
+                <p className="mt-2">Solar panels need to power your daytime loads directly AND recharge the energy consumed by your nighttime loads.</p>
+                <p className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700"><strong>Formula:</strong> <code>Panel Watts = (Day Load Wh + (Night Load Wh / Battery Efficiency)) / Sun Hours</code></p>
                  
             </CollapsibleSection>
             
@@ -418,12 +562,12 @@ const CalculatorPage = ({ setIsCustomCalcOpen }) => {
                 </button>
             </div>
 
-            {output && <div ref={outputSummaryRef}><OutputSummary output={output} systemVoltage={systemVoltage} showSafeSpecs={showSafeSpecs} setShowSafeSpecs={setShowSafeSpecs} handleDownloadPdf={handleDownloadPdf} winterFactor={winterPanelFactor} /></div>}
+            {output && <div ref={outputSummaryRef}><OutputSummary output={output} showSafeSpecs={showSafeSpecs} setShowSafeSpecs={setShowSafeSpecs} handleDownloadPdf={handleDownloadPdf} winterFactor={winterPanelFactor} /></div>}
         </>
     );
 };
 
-const SolarPanelRecommendation = ({ solarPanelWatts, winterFactor, batteryType, totalWattHours }) => {
+const SolarPanelRecommendation = ({ solarPanelWatts, winterFactor, batteryType, totalWattHours, totalDayWh, totalNightWh }) => {
     const panelOptions = [100, 200, 250, 300, 390, 450, 500];
     const requiredWinterWatts = solarPanelWatts * winterFactor;
 
@@ -431,7 +575,7 @@ const SolarPanelRecommendation = ({ solarPanelWatts, winterFactor, batteryType, 
         <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700">
             <h3 className="text-xl font-semibold mb-4 text-blue-800 dark:text-blue-300">Solar Panel Combination Guide</h3>
             <p className="mb-4 text-gray-700 dark:text-gray-300">
-                Based on your daily usage of <strong>{totalWattHours.toFixed(0)}Wh</strong> and selecting a <strong>{batteryType}</strong> battery, you need <strong>{solarPanelWatts.toFixed(0)}W</strong> of solar panels in summer. For winter, we recommend <strong>{requiredWinterWatts.toFixed(0)}W</strong> (using a {((winterFactor - 1) * 100).toFixed(0)}% winter buffer). Here are some options:
+                Based on your daily usage (<strong>{totalDayWh.toFixed(0)}Wh</strong> day, <strong>{totalNightWh.toFixed(0)}Wh</strong> night) and a <strong>{batteryType}</strong> battery, you need <strong>{solarPanelWatts.toFixed(0)}W</strong> of solar panels in summer. For winter, we recommend <strong>{requiredWinterWatts.toFixed(0)}W</strong> (using a {((winterFactor - 1) * 100).toFixed(0)}% winter buffer). Here are some options:
             </p>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                 {panelOptions.map(panel => {
@@ -537,47 +681,224 @@ const ChartComponent = ({ type, data, options, title }) => {
     );
 };
 
-const OutputSummary = ({ output, systemVoltage, showSafeSpecs, setShowSafeSpecs, handleDownloadPdf, winterFactor }) => {
-    const { totalWattHours, totalACWatts, inverterSize, batterySizing, solarPanelWatts, controllerAmps, devices, sunHours, daysOfAutonomy, batteryType } = output;
+/* @tweakable Pastel colors for bubble charts. */
+const pastelColors = [
+    'rgba(255, 182, 193, 0.7)', 'rgba(173, 216, 230, 0.7)', 'rgba(144, 238, 144, 0.7)',
+    'rgba(255, 255, 224, 0.7)', 'rgba(216, 191, 216, 0.7)', 'rgba(255, 218, 185, 0.7)',
+    'rgba(175, 238, 238, 0.7)', 'rgba(240, 230, 140, 0.7)'
+];
+
+/* @tweakable Bubble radius scaling factor for device impact chart */
+const deviceBubbleScaleFactor = 5;
+
+const BubbleChartSection = ({ output }) => {
+    const [activeTab, setActiveTab] = useState('deviceImpact');
+    const { devices, solarPanelWatts, sunHours, batterySizing, batteryType } = output;
+
+    const tabClasses = "px-4 py-2 rounded-t-lg font-semibold transition-colors";
+    const activeTabClasses = "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400";
+    const inactiveTabClasses = "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600";
+
+    const deviceImpactData = {
+        datasets: devices.map((d, i) => ({
+            label: d.name || `Device ${i + 1}`,
+            data: [{
+                x: (d.powerType === 'AC' ? d.power : (d.volts * d.amps)) * (d.dayHours + d.nightHours) * (d.quantity || 1),
+                y: d.powerType === 'AC' ? d.power : (d.volts * d.amps),
+                r: (d.dayHours + d.nightHours) * deviceBubbleScaleFactor
+            }],
+            backgroundColor: pastelColors[i % pastelColors.length]
+        }))
+    };
     
-    const allBatteryTypes = ['Lithium', ...Object.keys(batterySizing['Lead-Acid'])];
-    const allBatteryValues = [batterySizing.Lithium, ...Object.values(batterySizing['Lead-Acid'])];
+    /* @tweakable Factors for weather scenarios relative to user-input sun hours. */
+    const weatherScenariosFactors = { 'Sunny': 1, 'Partly Cloudy': 0.6, 'Overcast': 0.3 };
+
+    const weatherImpactData = {
+        datasets: Object.entries(weatherScenariosFactors).map(([label, factor], i) => {
+            const scenarioSunHours = sunHours * factor;
+            return {
+                label: label,
+                data: [{
+                    x: scenarioSunHours,
+                    y: solarPanelWatts * scenarioSunHours,
+                    r: batterySizing[batteryType] / 50 // Scale for visibility
+                }],
+                backgroundColor: pastelColors[i % pastelColors.length]
+            };
+        })
+    };
+
+    const deviceImpactOptions = {
+        scales: {
+            x: { title: { display: true, text: 'Device Energy Usage (Wh/day)' } },
+            y: { title: { display: true, text: 'Device Power (Watts)' } }
+        },
+        plugins: {
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        const label = context.dataset.label || '';
+                        const point = context.raw;
+                        return `${label}: ${point.x.toFixed(0)}Wh/day, ${point.y.toFixed(0)}W, ${(point.r / deviceBubbleScaleFactor).toFixed(1)}h`;
+                    }
+                }
+            }
+        }
+    };
+
+    const weatherImpactOptions = {
+        scales: {
+            x: { title: { display: true, text: 'Sun Hours per Day' } },
+            y: { title: { display: true, text: 'Energy Generated (Wh)' } }
+        },
+        plugins: {
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        const label = context.dataset.label || '';
+                        const point = context.raw;
+                        return `${label}: ${point.x.toFixed(1)} sun hours, ${point.y.toFixed(0)}Wh generated. Battery needed: ${batterySizing[batteryType].toFixed(0)}Wh`;
+                    }
+                }
+            }
+        }
+    };
+
+    return (
+        <div className="my-8">
+            <h3 className="text-2xl font-bold mb-4 text-gray-800 dark:text-white">Impact Analysis</h3>
+            <div className="flex border-b border-gray-300 dark:border-gray-600">
+                <button onClick={() => setActiveTab('deviceImpact')} className={`${tabClasses} ${activeTab === 'deviceImpact' ? activeTabClasses : inactiveTabClasses}`}>
+                    Device Impact Map
+                </button>
+                <button onClick={() => setActiveTab('weatherImpact')} className={`${tabClasses} ${activeTab === 'weatherImpact' ? activeTabClasses : inactiveTabClasses}`}>
+                    Weather Impact Map
+                </button>
+            </div>
+            <div className="bg-white dark:bg-gray-800 p-4 rounded-b-lg shadow-md">
+                {activeTab === 'deviceImpact' && (
+                    <ChartComponent type="bubble" data={deviceImpactData} options={deviceImpactOptions} title="Device Impact: Energy vs Power vs Usage Time" />
+                )}
+                {activeTab === 'weatherImpact' && (
+                    <ChartComponent type="bubble" data={weatherImpactData} options={weatherImpactOptions} title="Weather Impact: Sun Hours vs Generation vs Storage" />
+                )}
+            </div>
+        </div>
+    );
+};
+
+const OutputSummary = ({ output, showSafeSpecs, setShowSafeSpecs, handleDownloadPdf, winterFactor }) => {
+    const { totalDayWh, totalNightWh, totalWattHours, totalACWatts, inverterSize, batterySizing, solarPanelWatts, controllerAmps, devices, sunHours, daysOfAutonomy, batteryType, systemVoltage, totalAcWh, totalDcWh } = output;
     
+    const allBatteryTypes = Object.keys(batterySizing);
+    const allBatteryValues = Object.values(batterySizing);
+    
+    /* @tweakable Colors for the battery capacity chart. */
+    const batteryChartColors = ['#4ade80', '#fbbf24', '#60a5fa', '#f87171', '#c084fc', '#818cf8'];
+    
+    /* @tweakable Background color for the system balance chart. */
+    const systemBalanceBgColor = 'rgba(54, 162, 235, 0.2)';
+    /* @tweakable Border color for the system balance chart. */
+    const systemBalanceBorderColor = 'rgb(54, 162, 235)';
+    
+    /* @tweakable Use Amp-hours (Ah) for battery in system balance chart. If false, Watt-hours (Wh) will be used. */
+    const useAhForBatteryInChart = true;
+
+    /* @tweakable Background color for the supply line in the energy chart. */
+    const supplyLineBgColor = 'rgba(34, 197, 94, 0.2)';
+    /* @tweakable Border color for the supply line in the energy chart. */
+    const supplyLineBorderColor = 'rgb(34, 197, 94)';
+    /* @tweakable Background color for the demand line in the energy chart. */
+    const demandLineBgColor = 'rgba(239, 68, 68, 0.2)';
+    /* @tweakable Border color for the demand line in the energy chart. */
+    const demandLineBorderColor = 'rgb(239, 68, 68)';
+
+    /* @tweakable Night supply background color on polar chart */
+    const nightSupplyPolarBg = "rgba(0, 0, 255, 0.6)";
+    /* @tweakable Night demand background color on polar chart */
+    const nightDemandPolarBg = "rgba(128, 0, 128, 0.6)";
+    /* @tweakable Border color for polar chart segments. This is the line circling each area. */
+    const polarChartBorderColor = "white";
+
+    /* @tweakable Background colors for the energy supply/demand polar chart. [Day Supply, Night Supply, Day Demand, Night Demand] */
+    const energyPolarChartBackgroundColors = [
+        "rgba(0,255,0,0.6)",
+        nightSupplyPolarBg,
+        "rgba(255,0,0,0.6)",
+        nightDemandPolarBg
+    ];
+    /* @tweakable Border colors for the energy supply/demand polar chart. [Day Supply, Night Supply, Day Demand, Night Demand] */
+    const energyPolarChartBorderColors = [
+        polarChartBorderColor,
+        polarChartBorderColor,
+        polarChartBorderColor,
+        polarChartBorderColor
+    ];
+
+    /* @tweakable Cutout percentage for the AC/DC donut chart. 50% makes it a donut, 0% makes it a pie. */
+    const acDcDonutCutout = '50%';
+    /* @tweakable Colors for the AC/DC load distribution donut chart. */
+    const acDcChartColors = ['#3b82f6', '#10b981'];
+
+    /* @tweakable Whether to display the legend on the battery capacity chart. */
+    const showBatteryChartLegend = false;
+
+    const requiredWhForSelectedType = batterySizing[batteryType];
+    const batteryValueForChart = useAhForBatteryInChart ? requiredWhForSelectedType / systemVoltage : requiredWhForSelectedType;
+    const batteryLabelForChart = useAhForBatteryInChart ? `Battery (Ah)` : `Battery (Wh)`;
+
     const chartData = {
         loadPerDevice: {
             labels: devices.map(d => d.name || 'Unnamed'),
             datasets: [{
                 label: 'Watt-hours per device',
-                data: devices.map(d => d.power * d.hours),
+                data: devices.map(d => (d.powerType === 'AC' ? d.power : (d.volts * d.amps)) * (d.dayHours + d.nightHours) * (d.quantity || 1)),
                 backgroundColor: ['#4ade80', '#fbbf24', '#60a5fa', '#f87171', '#c084fc', '#818cf8'],
             }]
         },
-        batteryShare: {
-            labels: allBatteryTypes,
+        dayNightLoad: {
+            labels: ['Day Load (Wh)', 'Night Load (Wh)'],
             datasets: [{
-                label: 'Required Battery Capacity (Wh)',
-                data: allBatteryValues.map(v => v.toFixed(2)),
-                backgroundColor: ['#3b82f6', '#16a34a', '#f97316', '#ca8a04'],
+                label: 'Load Distribution',
+                data: [totalDayWh, totalNightWh],
+                backgroundColor: ['#fbbf24', '#4f46e5'],
+            }]
+        },
+        acDcLoad: {
+            labels: ['AC Load (Wh)', 'DC Load (Wh)'],
+            datasets: [{
+                label: 'AC vs DC Load',
+                data: [totalAcWh, totalDcWh],
+                backgroundColor: acDcChartColors,
             }]
         },
         energySupplyDemand: {
-            labels: ['Energy Demand (Wh/day)', 'Energy Supply (Wh/day)'],
+            labels: ["Day Supply (Wh)", "Night Supply (Wh)", "Day Demand (Wh)", "Night Demand (Wh)"],
             datasets: [{
-                label: 'Supply vs Demand',
-                data: [totalWattHours, solarPanelWatts * sunHours],
-                backgroundColor: ['rgba(239, 68, 68, 0.5)', 'rgba(34, 197, 94, 0.5)'],
-                borderColor: ['rgb(239, 68, 68)', 'rgb(34, 197, 94)'],
-                fill: true
+                label: "Energy Supply & Demand",
+                data: [solarPanelWatts * sunHours, 0, totalDayWh, totalNightWh],
+                backgroundColor: energyPolarChartBackgroundColors,
+                borderColor: energyPolarChartBorderColors,
+                borderWidth: 1
+            }]
+        },
+        batteryCapacityByType: {
+            labels: allBatteryTypes,
+            datasets: [{
+                label: 'Required Capacity (Wh)',
+                data: allBatteryValues,
+                backgroundColor: batteryChartColors,
             }]
         },
         systemBalance: {
-             labels: ['Load (W)', `Inverter (W)`, `Panels (W)`, `Controller (A)`],
+             labels: ['Load (W)', `Inverter (W)`, `Panels (W)`, `Controller (A)`, batteryLabelForChart],
              datasets: [{
                 label: 'System Components Rating',
-                data: [totalACWatts, inverterSize, solarPanelWatts, controllerAmps],
-                backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                borderColor: 'rgb(54, 162, 235)',
-                pointBackgroundColor: 'rgb(54, 162, 235)',
+                data: [totalACWatts, inverterSize, solarPanelWatts, controllerAmps, batteryValueForChart],
+                backgroundColor: systemBalanceBgColor,
+                borderColor: systemBalanceBorderColor,
+                pointBackgroundColor: systemBalanceBorderColor,
              }]
         }
     };
@@ -591,15 +912,22 @@ const OutputSummary = ({ output, systemVoltage, showSafeSpecs, setShowSafeSpecs,
     const safePanelWatts = (safeBatteryWh / sunHours) * safeSpecs.panelBuffer;
     const safeInverterSize = totalACWatts * safeSpecs.inverterBuffer;
 
-    const requiredWhForSelectedType = batteryType === 'Lithium' 
-        ? batterySizing.Lithium 
-        : batterySizing['Lead-Acid'][batteryType];
-
     return (
         <div id="output-summary" className="mt-10 p-4 sm:p-8 bg-gray-50 dark:bg-gray-900/50 rounded-lg shadow-xl">
             <div className="flex justify-between items-center border-b-2 border-blue-500 pb-4 mb-6">
                 <h2 className="text-3xl font-bold text-gray-800 dark:text-white">Output Summary</h2>
                  <button onClick={handleDownloadPdf} className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"><i className="fas fa-file-pdf mr-2"></i>Download PDF</button>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 text-center">
+                <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md">
+                    <h3 className="text-md font-semibold text-gray-500 dark:text-gray-400">Day Consumption</h3>
+                    <p className="text-2xl font-bold text-yellow-500 dark:text-yellow-400">{totalDayWh.toFixed(2)} <span className="text-lg">Wh/day</span></p>
+                </div>
+                 <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md">
+                    <h3 className="text-md font-semibold text-gray-500 dark:text-gray-400">Night Consumption</h3>
+                    <p className="text-2xl font-bold text-indigo-500 dark:text-indigo-400">{totalNightWh.toFixed(2)} <span className="text-lg">Wh/day</span></p>
+                </div>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 text-center">
@@ -621,28 +949,18 @@ const OutputSummary = ({ output, systemVoltage, showSafeSpecs, setShowSafeSpecs,
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Lithium Battery */}
-                <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md flex flex-col justify-center">
-                    <h3 className="text-xl font-semibold">Lithium Battery</h3>
-                    <p className="text-3xl font-bold text-blue-500 dark:text-blue-400">{batterySizing.Lithium.toFixed(2)} <span className="text-lg">Wh</span></p>
-                    <p className="text-2xl font-bold text-gray-600 dark:text-gray-300">~{(batterySizing.Lithium / systemVoltage).toFixed(2)} <span className="text-base">Ah @{systemVoltage}V</span></p>
-                </div>
-                
-                {/* Lead-Acid Parent Tile */}
-                <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
-                    <h3 className="text-xl font-semibold mb-4 text-center border-b pb-2">Lead-Acid Batteries</h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
-                        {Object.entries(batterySizing['Lead-Acid']).map(([type, wh]) => (
-                             <div key={type}>
-                                <h4 className="text-lg font-semibold">{type}</h4>
-                                <p className="text-2xl font-bold text-orange-500 dark:text-orange-400">{wh.toFixed(2)}</p>
-                                <p className="text-sm text-gray-500 dark:text-gray-400">Wh</p>
-                                <p className="text-lg font-bold text-gray-600 dark:text-gray-300 mt-1">~{(wh / systemVoltage).toFixed(2)}</p>
-                                <p className="text-xs text-gray-500 dark:text-gray-400">Ah @{systemVoltage}V</p>
-                            </div>
-                        ))}
-                    </div>
+            <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md mb-8">
+                <h3 className="text-lg font-semibold mb-4 text-center border-b pb-2">Battery Capacity for Night Load ({daysOfAutonomy} Day{daysOfAutonomy > 1 ? 's' : ''} Autonomy)</h3>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+                    {Object.entries(batterySizing).map(([type, wh]) => (
+                         <div key={type}>
+                            <h4 className="text-lg font-semibold">{type}</h4>
+                            <p className="text-2xl font-bold text-orange-500 dark:text-orange-400">{wh.toFixed(2)}</p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">Wh</p>
+                            <p className="text-lg font-bold text-gray-600 dark:text-gray-300 mt-1">~{(wh / systemVoltage).toFixed(2)}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">Ah @{systemVoltage}V</p>
+                        </div>
+                    ))}
                 </div>
             </div>
 
@@ -651,6 +969,8 @@ const OutputSummary = ({ output, systemVoltage, showSafeSpecs, setShowSafeSpecs,
                 winterFactor={winterFactor}
                 batteryType={batteryType}
                 totalWattHours={totalWattHours}
+                totalDayWh={totalDayWh}
+                totalNightWh={totalNightWh}
             />
 
             <BatteryRecommendation 
@@ -662,19 +982,26 @@ const OutputSummary = ({ output, systemVoltage, showSafeSpecs, setShowSafeSpecs,
             <div className="my-8">
                 <h3 className="text-2xl font-bold mb-4 text-gray-800 dark:text-white">Visualizations</h3>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <ChartComponent type="pie" data={chartData.dayNightLoad} title="Day vs. Night Load Distribution" />
+                    <ChartComponent type="doughnut" data={chartData.acDcLoad} title="AC vs. DC Load Distribution" options={{ cutout: acDcDonutCutout }} />
                     <ChartComponent type="bar" data={chartData.loadPerDevice} title="Load per Device (Wh/day)" options={{scales: {y: {beginAtZero: true}}}} />
-                    <ChartComponent type="pie" data={chartData.batteryShare} title="Required Battery Capacity by Type (Wh)" />
-                    <ChartComponent type="bar" data={chartData.energySupplyDemand} title="Energy Supply vs Demand" options={{scales: {y: {beginAtZero: true}}}}/>
-                    <ChartComponent type="radar" data={chartData.systemBalance} title="System Component Balance" options={{scales: {r: {beginAtZero: true}}}}/>
+                    <ChartComponent type="polarArea" data={chartData.energySupplyDemand} title="Energy Supply vs Demand" options={{ responsive: true, plugins: { legend: { position: 'right' } } }}/>
+                    <ChartComponent type="bar" data={chartData.batteryCapacityByType} title="Required Battery Capacity by Type (Wh)" options={{ indexAxis: 'y', responsive: true, plugins: { legend: { display: showBatteryChartLegend } }, scales: { x: { beginAtZero: true } } }} />
+                    <ChartComponent type="radar" data={chartData.systemBalance} title="System Component Balance" />
                 </div>
             </div>
             
+            <BubbleChartSection output={output} />
+
             <div className="mb-8 p-6 bg-yellow-50 border border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800 rounded-lg">
                 <h3 className="text-2xl font-bold mb-4 text-yellow-800 dark:text-yellow-300">Recommended Tips</h3>
                 <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-gray-300">
-                    <li><strong>Battery Protection:</strong> Never drain your batteries completely. The calculations account for safe Depth of Discharge (DoD) - 50% for Lead-Acid, 60% for Gel, and 99% for Lithium.</li>
-                    <li><strong>Rainy/Winter Seasons (e.g., in Zimbabwe):</strong> Expect 2-5 days with little to no sun. Increase your "Days of Autonomy" to 3-5 to compensate.</li>
-                    <li><strong>Winter Production:</strong> You may need 30-50% more solar panels in winter due to shorter days and lower sun angle. Plan accordingly.</li>
+                    <li><strong>Battery Protection:</strong> Never drain your batteries completely. The calculations account for safe Depth of Discharge (DoD) - e.g., 50% for Lead-Acid, 99% for Lithium.</li>
+                    <li><strong>Night Loads Matter:</strong> Night loads have the highest impact on battery size and cost. Shifting usage to daytime can significantly reduce the battery capacity you need.</li>
+                    <li><strong>Day Loads & Solar:</strong> Day loads can often be powered directly by your solar panels, reducing the strain on your batteries and improving system efficiency.</li>
+                    <li><strong>AC vs DC:</strong> Using DC appliances where possible can be more efficient as it avoids conversion losses from an inverter (DC battery -> AC appliance).</li>
+                    <li><strong>Rainy/Winter Seasons:</strong> Expect fewer sun hours and consider increasing your "Days of Autonomy" to 3-5 to compensate for consecutive cloudy days.</li>
+                    <li><strong>Winter Production:</strong> You may need 30-50% more solar panels in winter due to shorter days and lower sun angle. The "Solar Panel Combination Guide" accounts for this.</li>
                 </ul>
             </div>
             
@@ -688,10 +1015,10 @@ const OutputSummary = ({ output, systemVoltage, showSafeSpecs, setShowSafeSpecs,
                  <div className="mt-8 p-6 bg-red-50 border border-red-200 dark:bg-red-900/20 dark:border-red-800 rounded-lg animate-fade-in">
                     <h3 className="text-2xl font-bold mb-4 text-red-800 dark:text-red-300">Safe Specifications ({safeSpecs.days} Rainy Days)</h3>
                     <div className="space-y-4">
-                        <p><strong>Mismatch Alert:</strong> The solar array of <strong>{solarPanelWatts.toFixed(0)}W</strong> may not fully charge a <strong>{batterySizing['Lead-Acid']['Flooded'].toFixed(0)}Wh</strong> battery bank in <strong>{sunHours}</strong> hours, especially on cloudy days.</p>
+                        <p><strong>Mismatch Alert:</strong> The solar array of <strong>{solarPanelWatts.toFixed(0)}W</strong> may not fully charge a battery bank sized for your night load in <strong>{sunHours}</strong> hours, especially on cloudy days.</p>
                         <p><strong>Suggested Combo:</strong> For <strong>{safeSpecs.days}</strong> sunless days, we recommend:</p>
                         <ul className="list-disc list-inside ml-4 text-lg">
-                            <li>Minimum Battery Size (Lead-Acid): <strong>{safeBatteryWh.toFixed(0)} Wh</strong> (~{(safeBatteryWh / systemVoltage).toFixed(0)} Ah @{systemVoltage}V)</li>
+                            <li>Minimum Battery Size (based on total load, worst-case Lead-Acid): <strong>{safeBatteryWh.toFixed(0)} Wh</strong> (~{(safeBatteryWh / systemVoltage).toFixed(0)} Ah @{systemVoltage}V)</li>
                             <li>Minimum Panel Array: <strong>{safePanelWatts.toFixed(0)} W</strong> (includes {((safeSpecs.panelBuffer-1)*100).toFixed(0)}% buffer for low light)</li>
                             <li>Minimum Inverter Size: <strong>{safeInverterSize.toFixed(0)} W</strong> (includes {((safeSpecs.inverterBuffer-1)*100).toFixed(0)}% buffer for motor startup loads)</li>
                         </ul>
@@ -736,14 +1063,13 @@ const AboutPage = () => {
                     <li><strong>Choose System Voltage:</strong> Select your preferred DC system voltage (12V, 24V, or 48V). Higher voltage is generally more efficient for larger systems.</li>
                     <li><strong>Calculate:</strong> Hit the "Calculate System Specs" button.</li>
                     <li><strong>Review Output:</strong> Scroll down to the "Output Summary" to see the recommended sizes for your inverter, battery bank, solar panels, and charge controller. Use the charts for a visual breakdown.</li>
-                    <li><strong>Check Safe Specs:</strong> For extra reliability, especially in areas with frequent bad weather, click "Show Safe Specs" for oversized recommendations.</li>
-                    <li><strong>Custom System Check:</strong> For tailored recommendations based on your specific needs, use the "Custom System Check" feature.</li>
+                     <li><strong>Check Safe Specs:</strong> For extra reliability, especially in areas with frequent bad weather, click "Show Safe Specs" for oversized recommendations.</li>
                 </ol>
             </div>
             
             <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-md">
                 <h2 className="text-3xl font-bold mb-4 border-b pb-2">About the Developer</h2>
-                <p className="mb-4">This tool was created by <b>Fidel Munashe Mudzamba</b> dedicated to making renewable energy more accessible. The goal is to empower individuals to make informed decisions about their energy independence.</p>
+                <p className="mb-4">This tool was created by a passionate developer dedicated to making renewable energy more accessible. The goal is to empower individuals to make informed decisions about their energy independence.</p>
                 <div className="flex space-x-6">
                     <a href="https://fidelmudzamba.vercel.app" target="_blank" className="text-blue-500 hover:underline text-lg"><i className="fab fa-solid fa-globe mr-2"></i>Website/Portfolio</a>
                     <a href="https://github.com" target="_blank" className="text-blue-500 hover:underline text-lg"><i className="fab fa-github mr-2"></i>GitHub</a>
@@ -758,7 +1084,7 @@ const AboutPage = () => {
 /* @tweakable Safeguard efficiency multiplier for custom calculations. 0.8 means 80% efficiency. */
 const customCalcSafeguard = 0.8;
 
-const CustomSystemCheckModal = ({ isOpen, onClose }) => {
+const CustomSystemCheckModal = ({ isOpen, onClose, label }) => {
     const [inverterW, setInverterW] = useState(1000);
     const [batteryAh, setBatteryAh] = useState(100);
     const [batteryV, setBatteryV] = useState(12);
@@ -802,13 +1128,9 @@ const CustomSystemCheckModal = ({ isOpen, onClose }) => {
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-8 w-full max-w-2xl overflow-y-auto" style={{ maxHeight: modalMaxHeight }} onClick={e => e.stopPropagation()}>
                 <div className="flex justify-between items-center mb-6 sticky top-0 bg-white dark:bg-gray-800 py-2 -mt-8 -mx-8 px-8 z-10">
                     <h2 className="text-2xl font-bold">Custom System Check</h2>
-                    <button onClick={onClose} className="text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 text-2xl">&times;</button>
-                </div>
-
-                <div>
-                  <br></br> 
-                    <p>Note: After making changes to the <b>Load Analysis</b> or adjusting the <b>Sun Hours</b>, be sure to click the <b>'Calc System'</b> navigation icon or the <b>'Calculate System Specs'</b> button before reviewing the <b>Custom System</b> details.</p>
-                  <br></br>
+                    <button onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors flex items-center">
+                        <i className="fas fa-times mr-2"></i> {label || 'Close'}
+                    </button>
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -854,5 +1176,5 @@ const CustomSystemCheckModal = ({ isOpen, onClose }) => {
         </div>
     );
 };
-
+ 
 export default App;

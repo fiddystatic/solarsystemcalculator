@@ -64,8 +64,14 @@ footer.bg-white {
 }
 
 .section-content.open {
-    max-height: 2000px; /* Adjust as needed, increased from 1000px */
+    max-height: 3000px; /* Adjust as needed, increased from 1000px */
     padding: 1.5rem 1.5rem;
+}
+
+.load-analysis-grid .md\:grid-cols-12 > div {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
 }
 
 @keyframes fade-in {

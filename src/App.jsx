@@ -124,6 +124,16 @@ const CollapsibleSection = ({ title, id, children }) => {
 };
 
 const CalculatorPage = ({ setIsCustomCalcOpen }) => {
+    /* @tweakable Column spans for the device input row on desktop. Total should be 12. */
+    const deviceColSpans = {
+        device: 2,
+        qty: 2,
+        timeOfUse: 2,
+        power: 2,
+        hours: 2,
+        wattHours: 1,
+        actions: 1,
+    };
     /* @tweakable Default system voltage for calculations */
     const [systemVoltage, setSystemVoltage] = useState(12);
     /* @tweakable Default battery type for main calculations */
@@ -355,15 +365,15 @@ const CalculatorPage = ({ setIsCustomCalcOpen }) => {
     return (
         <>
             <CollapsibleSection title="1. Load Analysis" id="load-analysis">
-                {/* Header Labels */}
-                <div className="hidden md:grid md:grid-cols-12 gap-2 mb-2 px-2 text-sm font-semibold text-gray-600 dark:text-gray-400">
-                    <div className="col-span-3">Device</div>
-                    <div className="col-span-1 text-center">Qty</div>
-                    <div className="col-span-2">Time of Use</div>
-                    <div className="col-span-2">Power Details</div>
-                    <div className="col-span-2 text-center">Day/Night (h)</div>
-                    <div className="col-span-1 text-right">Wh</div>
-                    <div className="col-span-1"></div>
+                {/* Header Labels for wide screens */}
+                <div className="hidden md:grid md:grid-cols-12 gap-4 px-2 text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2">
+                    <div className={`col-span-${deviceColSpans.device}`}>Device</div>
+                    <div className={`col-span-${deviceColSpans.qty}`}>Qty</div>
+                    <div className={`col-span-${deviceColSpans.timeOfUse}`}>Time of Use</div>
+                    <div className={`col-span-${deviceColSpans.power}`}>Power Details</div>
+                    <div className={`col-span-${deviceColSpans.hours}`}>Day/Night (h)</div>
+                    <div className={`col-span-${deviceColSpans.wattHours}`}>Watt Hours</div>
+                    <div className={`col-span-${deviceColSpans.actions} text-center`}>Actions</div>
                 </div>
 
                 {devices.map((device, index) => {
@@ -371,88 +381,92 @@ const CalculatorPage = ({ setIsCustomCalcOpen }) => {
                     const quantity = device.quantity || 1;
                     const wattHours = deviceWatts * (device.dayHours + device.nightHours) * quantity;
                     return (
-                        <div key={index} className="grid grid-cols-2 md:grid-cols-12 gap-2 mb-4 items-center">
-                            {/* Device Name */}
-                            <div className="col-span-2 md:col-span-3">
-                                <label className="md:hidden text-xs font-medium">Device</label>
-                                <input type="text" placeholder="Device Name" value={device.name} onChange={e => updateDevice(index, 'name', e.target.value)} className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600" />
-                            </div>
-
-                             {/* Quantity */}
-                             <div className="col-span-2 md:col-span-1">
-                                <label className="md:hidden text-xs font-medium">Quantity</label>
-                                <div className="flex items-center">
-                                    <button onClick={() => updateDevice(index, 'quantity', device.quantity - 1)} className="px-2 py-1 border rounded-l bg-gray-200 dark:bg-gray-600 h-[42px]">-</button>
-                                    <input type="number" value={device.quantity} onChange={e => updateDevice(index, 'quantity', e.target.value)} className="w-full p-2 border-t border-b text-center bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 h-[42px]" />
-                                    <button onClick={() => updateDevice(index, 'quantity', device.quantity + 1)} className="px-2 py-1 border rounded-r bg-gray-200 dark:bg-gray-600 h-[42px]">+</button>
+                        <div key={index} className="p-2 border-b dark:border-gray-700 md:border-b-2 mb-4">
+                            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
+                                {/* Device Name */}
+                                <div className={`col-span-1 md:col-span-${deviceColSpans.device}`}>
+                                    <label className="md:hidden text-xs font-medium">Device</label>
+                                    <input type="text" placeholder="Device Name" value={device.name} onChange={e => updateDevice(index, 'name', e.target.value)} className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600" />
                                 </div>
-                            </div>
-                            
-                            {/* Time of Use */}
-                            <div className="col-span-2 md:col-span-2">
-                                <label className="md:hidden text-xs font-medium">Time of Use</label>
-                                <select value={device.timeOfUse} onChange={e => updateDevice(index, 'timeOfUse', e.target.value)} className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 h-[42px]">
-                                    <option value="Day">Day</option>
-                                    <option value="Night">Night</option>
-                                    <option value="Both">Both</option>
-                                </select>
-                            </div>
 
-                             {/* Power Details */}
-                             <div className="col-span-2 md:col-span-2">
-                                <label className="md:hidden text-xs font-medium">Power Details</label>
-                                <div className="flex flex-col gap-2">
-                                    <div className="flex gap-2">
-                                        <select value={device.powerType} onChange={e => updateDevice(index, 'powerType', e.target.value)} className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 h-[42px]">
-                                            <option value="AC">AC (Watts)</option>
-                                            <option value="DC">DC (Volts/Amps)</option>
-                                        </select>
+                                 {/* Quantity */}
+                                 <div className={`col-span-1 md:col-span-${deviceColSpans.qty}`}>
+                                    <label className="md:hidden text-xs font-medium">Quantity</label>
+                                    <div className="flex items-center">
+                                        <button onClick={() => updateDevice(index, 'quantity', device.quantity - 1)} className="px-2 py-1 border rounded-l bg-gray-200 dark:bg-gray-600 h-[42px]">-</button>
+                                        <input type="number" value={device.quantity} onChange={e => updateDevice(index, 'quantity', e.target.value)} className="w-16 p-2 border-t border-b text-center bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 h-[42px]" />
+                                        <button onClick={() => updateDevice(index, 'quantity', device.quantity + 1)} className="px-2 py-1 border rounded-r bg-gray-200 dark:bg-gray-600 h-[42px]">+</button>
                                     </div>
-                                    <div className="flex gap-2">
-                                        {device.powerType === 'AC' ? (
-                                            <input type="number" placeholder="Watts" value={device.power} onChange={e => updateDevice(index, 'power', e.target.value)} className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600" />
+                                </div>
+                                
+                                {/* Time of Use */}
+                                <div className={`col-span-1 md:col-span-${deviceColSpans.timeOfUse}`}>
+                                    <label className="md:hidden text-xs font-medium">Time of Use</label>
+                                    <select value={device.timeOfUse} onChange={e => updateDevice(index, 'timeOfUse', e.target.value)} className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 h-[42px]">
+                                        <option value="Day">Day</option>
+                                        <option value="Night">Night</option>
+                                        <option value="Both">Both</option>
+                                    </select>
+                                </div>
+                            
+                                 {/* Power Details */}
+                                 <div className={`col-span-1 md:col-span-${deviceColSpans.power}`}>
+                                    <label className="md:hidden text-xs font-medium">Power Details</label>
+                                    <div className="flex flex-col gap-2">
+                                        <select value={device.powerType} onChange={e => updateDevice(index, 'powerType', e.target.value)} className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 h-[42px]">
+                                            <option value="AC">AC</option>
+                                            <option value="DC">DC</option>
+                                        </select>
+                                        {device.powerType === 'AC' ? (                                              <div className="flex flex-col w-full">
+    <label className="text-xs text-white-500 dark:text-white-400 italic">Watts</label>
+    <input
+      type="number"
+      value={device.power}
+      onChange={e => updateDevice(index, 'power', e.target.value)}
+      className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600"
+    />
+  </div>
+ 
                                         ) : (
-                                            <>
+                                            <div className="flex gap-2">
                                                 <div className="w-1/2">
-                                                    <label className="md:hidden text-xs font-medium">Volts</label>
-                                                    <input type="number" placeholder="Volts" value={device.volts} onChange={e => updateDevice(index, 'volts', e.target.value)} className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600" />
+<label className="text-xs text-white-500 dark:text-white-400 italic">Volts</label>                                                    <input type="number" value={device.volts} onChange={e => updateDevice(index, 'volts', e.target.value)} className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600" />
                                                 </div>
                                                 <div className="w-1/2">
-                                                    <label className="md:hidden text-xs font-medium">Amps</label>
-                                                    <input type="number" placeholder="Amps" value={device.amps} onChange={e => updateDevice(index, 'amps', e.target.value)} className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600" />
+ <label className="text-xs text-white-500 dark:text-white-400 italic">Amps</label>                                                   <input type="number" value={device.amps} onChange={e => updateDevice(index, 'amps', e.target.value)} className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600" />
                                                 </div>
-                                            </>
+                                            </div>
+                                        )}
+                                        {device.powerType === 'DC' && (
+                                            <p className="text-xs text-gray-500 dark:text-gray-400 italic">For DC devices, enter voltage and current (amps). Watts will be calculated automatically.</p>
                                         )}
                                     </div>
-                                    {device.powerType === 'DC' && (
-                                        <p className="text-xs text-gray-500 dark:text-gray-400 italic">For DC devices, enter voltage and current (amps). Watts will be calculated automatically.</p>
-                                    )}
                                 </div>
-                            </div>
 
-                             {/* Day/Night Hours */}
-                            <div className="col-span-2 md:col-span-2">
-                                 <div className="flex gap-2">
-                                    <div className="w-1/2">
-                                        <label className="md:hidden text-xs font-medium">Day (h)</label>
-                                        <input type="number" placeholder="Day" value={device.dayHours} disabled={device.timeOfUse === 'Night'} onChange={e => updateDevice(index, 'dayHours', e.target.value)} className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 disabled:bg-gray-200 dark:disabled:bg-gray-600" />
-                                    </div>
-                                    <div className="w-1/2">
-                                        <label className="md:hidden text-xs font-medium">Night (h)</label>
-                                        <input type="number" placeholder="Night" value={device.nightHours} disabled={device.timeOfUse === 'Day'} onChange={e => updateDevice(index, 'nightHours', e.target.value)} className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 disabled:bg-gray-200 dark:disabled:bg-gray-600" />
-                                    </div>
-                                 </div>
-                            </div>
-                            
-                            {/* Watt Hours & Remove */}
-                            <div className="col-span-2 md:col-span-1 flex items-center justify-between">
-                                <div className="text-right flex-grow">
-                                    <label className="md:hidden text-xs font-medium">Watt Hours</label>
-                                    <p className="p-2 font-medium whitespace-nowrap">{wattHours.toFixed(1)}</p>
+                                 {/* Day/Night Hours */}
+                                <div className={`col-span-1 md:col-span-${deviceColSpans.hours}`}>
+                                    <label className="md:hidden text-xs font-medium">Day/Night (h)</label>
+                                     <div className="flex flex-col gap-2 md:flex-row">
+                                        <div className="w-full md:w-1/2">                                            <input type="number" value={device.dayHours} disabled={device.timeOfUse === 'Night'} onChange={e => updateDevice(index, 'dayHours', e.target.value)} className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 disabled:bg-gray-200 dark:disabled:bg-gray-600" /> <p className="text-xs text-gray-500 dark:text-gray-400 italic"> Day(h)</p>
+                                        </div>
+                                        <div className="w-full md:w-1/2">
+                                            <input type="number" value={device.nightHours} disabled={device.timeOfUse === 'Day'} onChange={e => updateDevice(index, 'nightHours', e.target.value)} className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 disabled:bg-gray-200 dark:disabled:bg-gray-600" /> <p className="text-xs text-gray-500 dark:text-gray-400 italic"> Night(h)</p>
+                                        </div>
+                                     </div>
                                 </div>
-                            </div>
-                            <div className="col-span-2 md:col-span-1 flex items-center justify-center">
-                                <button onClick={() => removeDevice(index)} className="text-red-500 hover:text-red-700"><i className="fas fa-trash"></i></button>
+                            
+                                {/* Watt Hours Display */}
+                                <div className={`col-span-1 md:col-span-${deviceColSpans.wattHours} flex items-center justify-center`}>
+                                    <label className="md:hidden text-xs font-medium mr-2">Watt Hours:</label>
+                                    <p className="p-2 font-medium whitespace-nowrap">{wattHours.toFixed(1)} Wh</p>
+                                </div>
+                                {/* Remove Button */}
+                                <div className={`col-span-1 md:col-span-${deviceColSpans.actions} flex flex-col items-center justify-center`}>
+                                    <button onClick={() => removeDevice(index)} className="text-red-500 hover:text-red-700">
+                                        <i className="fas fa-trash"></i>
+                                        <span className="text-xs block">Remove</span>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     );
@@ -819,7 +833,7 @@ const OutputSummary = ({ output, showSafeSpecs, setShowSafeSpecs, handleDownload
     /* @tweakable Night demand background color on polar chart */
     const nightDemandPolarBg = "rgba(128, 0, 128, 0.6)";
     /* @tweakable Border color for polar chart segments. This is the line circling each area. */
-    const polarChartBorderColor = "white";
+    const polarChartBorderColor = "yellow";
 
     /* @tweakable Background colors for the energy supply/demand polar chart. [Day Supply, Night Supply, Day Demand, Night Demand] */
     const energyPolarChartBackgroundColors = [
@@ -999,7 +1013,7 @@ const OutputSummary = ({ output, showSafeSpecs, setShowSafeSpecs, handleDownload
                     <li><strong>Battery Protection:</strong> Never drain your batteries completely. The calculations account for safe Depth of Discharge (DoD) - e.g., 50% for Lead-Acid, 99% for Lithium.</li>
                     <li><strong>Night Loads Matter:</strong> Night loads have the highest impact on battery size and cost. Shifting usage to daytime can significantly reduce the battery capacity you need.</li>
                     <li><strong>Day Loads & Solar:</strong> Day loads can often be powered directly by your solar panels, reducing the strain on your batteries and improving system efficiency.</li>
-                    <li><strong>AC vs DC:</strong> Using DC appliances where possible can be more efficient as it avoids conversion losses from an inverter (DC battery -> AC appliance).</li>
+                    <li><strong>AC vs DC:</strong> Using DC appliances where possible can be more efficient as it avoids conversion losses from an inverter (DC battery -&gt; AC appliance).</li>
                     <li><strong>Rainy/Winter Seasons:</strong> Expect fewer sun hours and consider increasing your "Days of Autonomy" to 3-5 to compensate for consecutive cloudy days.</li>
                     <li><strong>Winter Production:</strong> You may need 30-50% more solar panels in winter due to shorter days and lower sun angle. The "Solar Panel Combination Guide" accounts for this.</li>
                 </ul>

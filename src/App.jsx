@@ -1645,7 +1645,7 @@ function downloadPkg(pkg) {
 }
 
 // @tweakable Label for the vertical nav link to the common setups section
-const commonSetupsNavLabel = "Common Solar Setups";
+const commonSetupsNavLabel = "Common Setups";
 
 // @tweakable Classes for the modal's bottom-right download icon button
 const modalDownloadBtnClasses = "absolute bottom-3 right-3 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-100 shadow";

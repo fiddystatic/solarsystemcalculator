@@ -328,38 +328,66 @@ const CalculatorPage = ({ setIsCustomCalcOpen }) => {
         };
     }, [output]);
 
-    const handleDownloadPdf = async () => {
-        const summaryElement = document.getElementById('output-summary');
-        if (!summaryElement) return;
+const handleDownloadPdf = async () => {
+  const summaryElement = document.getElementById('output-summary');
+  if (!summaryElement) return;
 
-        summaryElement.classList.add('export-mode');
+  summaryElement.classList.add('export-mode');
 
-        const canvas = await html2canvas(summaryElement, { scale: 2 });
-        const imgData = canvas.toDataURL('image/png');
-        
-        const pdf = new jsPDF('p', 'mm', 'a4');
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = pdf.internal.pageSize.getHeight();
-        const imgWidth = canvas.width;
-        const imgHeight = canvas.height;
-        const ratio = imgWidth / imgHeight;
-        const newImgHeight = pdfWidth / ratio;
-        let heightLeft = newImgHeight;
-        let position = 0;
+  const canvas = await html2canvas(summaryElement, { scale: 1 });
+  const imgWidth = canvas.width;
+  const imgHeight = canvas.height;
+  const pdf = new jsPDF('p', 'mm', 'a4');
+  const pdfWidth = pdf.internal.pageSize.getWidth();
+  const pdfHeight = pdf.internal.pageSize.getHeight();
 
-        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, newImgHeight);
-        heightLeft -= pdfHeight;
+  const ratio = imgWidth / imgHeight;
+  const pdfImgWidth = pdfWidth;
+  const pdfImgHeight = pdfImgWidth / ratio;
 
-        while (heightLeft >= 0) {
-            position = heightLeft - newImgHeight;
-            pdf.addPage();
-            pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, newImgHeight);
-            heightLeft -= pdfHeight;
-        }
-        pdf.save('solar-system-summary.pdf');
-        
-        summaryElement.classList.remove('export-mode');
-    };
+  let heightLeft = imgHeight;
+  let position = 0;
+
+  // Because jsPDF uses mm and canvas pixels, calculate pixel to mm scale
+  const pxPerMm = imgWidth / pdfImgWidth;
+
+  while (heightLeft > 0) {
+    // Create a canvas to hold a slice of the original
+    const pageCanvas = document.createElement('canvas');
+    pageCanvas.width = imgWidth;
+    pageCanvas.height = Math.min(pdfHeight * pxPerMm, heightLeft);
+
+    const ctx = pageCanvas.getContext('2d');
+
+    // Draw the current slice of the big canvas onto the page canvas
+    ctx.drawImage(
+      canvas,
+      0, position,          // source x,y (start slice)
+      imgWidth, pageCanvas.height, // source width,height (slice height)
+      0, 0,                 // destination x,y
+      imgWidth, pageCanvas.height // destination width,height
+    );
+
+    // Convert the slice canvas to an image
+    const imgData = pageCanvas.toDataURL('image/png', 0.5);
+
+    // Calculate the height of the slice in PDF units (mm)
+    const pdfSliceHeight = pageCanvas.height / pxPerMm;
+
+    if (position > 0) {
+      pdf.addPage();
+    }
+
+    pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfSliceHeight);
+
+    heightLeft -= pageCanvas.height;
+    position += pageCanvas.height;
+  }
+
+  pdf.save('solar-system-summary.pdf');
+
+  summaryElement.classList.remove('export-mode');
+};
 
     return (
         <>

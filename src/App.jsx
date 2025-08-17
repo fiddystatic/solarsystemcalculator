@@ -38,6 +38,13 @@ const App = () => {
         document.getElementById('calculate-button')?.click();
     };
 
+    const handleCommonSetupsClick = (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('packages-cta');
+        if (btn) btn.click();
+        setTimeout(() => document.getElementById('common-setups')?.scrollIntoView({ behavior: 'smooth' }), 100);
+    };
+
     return (
         <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
              {/* Top Navbar for all screens */}
@@ -71,6 +78,7 @@ const App = () => {
                                 <span className="label">Sections</span>
                             </h2>
                             <nav className="flex flex-col space-y-2">
+                                <IconNavLink href="#common-setups" iconClass="fa-layer-group" label={commonSetupsNavLabel} onClick={handleCommonSetupsClick} />
                                 <IconNavLink href="#load-analysis" iconClass="fa-bolt" label="Load Analysis" />
                                 <IconNavLink href="#inverter-sizing" iconClass="fa-wave-square" label="Inverter Sizing" />
                                 <IconNavLink href="#battery-sizing" iconClass="fa-car-battery" label="Battery Sizing" />
@@ -133,6 +141,16 @@ const CalculatorPage = ({ setIsCustomCalcOpen }) => {
         wattHours: 1,
         actions: 1,
     };
+    /* @tweakable Whether the package tiles are shown initially */
+    const [showPackages, setShowPackages] = useState(false);
+    /* @tweakable Label for the "View Common Solar Setups" CTA button */
+    const packagesCtaLabel = "View Common Solar Setups";
+    /* @tweakable Auto-scroll to the packages section when revealed */
+    const autoScrollToPackages = true;
+    /* @tweakable Package key that starts expanded (use null for none) */
+    const [expandedKey, setExpandedKey] = useState(null);
+    /* @tweakable Currently selected package for modal (null means closed) */
+    const [modalPackage, setModalPackage] = useState(null);
     /* @tweakable Default system voltage for calculations */
     const [systemVoltage, setSystemVoltage] = useState(12);
     /* @tweakable Default battery type for main calculations */
@@ -369,7 +387,7 @@ const handleDownloadPdf = async () => {
     );
 
     // Convert the slice canvas to an image
-    const imgData = pageCanvas.toDataURL('image/png', 0.5);
+    const imgData = pageCanvas.toDataURL('image/jpeg', 1.0);
 
     // Calculate the height of the slice in PDF units (mm)
     const pdfSliceHeight = pageCanvas.height / pxPerMm;
@@ -391,6 +409,35 @@ const handleDownloadPdf = async () => {
 
     return (
         <>
+            <div className="mb-4">
+                <button
+                  id="packages-cta"
+                  onClick={() => setShowPackages(prev => {
+                    const next = !prev;
+                    if (!prev && autoScrollToPackages) setTimeout(() => document.getElementById('common-setups')?.scrollIntoView({ behavior: 'smooth' }), 100);
+                    return next;
+                  })}
+                  className="w-full py-3 px-6 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-colors shadow-lg"
+                  aria-expanded={showPackages}
+                  aria-controls="common-setups"
+                >
+                  <i className="fas fa-layer-group mr-2"></i> {packagesCtaLabel}
+                </button>
+                {showPackages && (
+                  <div
+                    id="common-setups"
+                    className="packages-enter"
+                    style={{ marginTop: `${12}px`, animationDuration: `${400}ms`, animationTimingFunction: 'ease' }}
+                  >
+                    <PackagesTiles
+                      packages={solarPackages}
+                      expandedKey={expandedKey}
+                      onExpand={key => setExpandedKey(prev => (prev === key ? null : key))}
+                      onOpenModal={pkg => setModalPackage(pkg)}
+                    />
+                  </div>
+                )}
+            </div>
             <CollapsibleSection title="1. Load Analysis" id="load-analysis">
                 {/* Header Labels for wide screens */}
                 <div className="hidden md:grid md:grid-cols-12 gap-4 px-2 text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2">
@@ -604,42 +651,420 @@ const handleDownloadPdf = async () => {
             </div>
 
             {output && <div ref={outputSummaryRef}><OutputSummary output={output} showSafeSpecs={showSafeSpecs} setShowSafeSpecs={setShowSafeSpecs} handleDownloadPdf={handleDownloadPdf} winterFactor={winterPanelFactor} /></div>}
+            {modalPackage && (
+              <PackageDetailsModal
+                pkg={modalPackage}
+                onClose={() => setModalPackage(null)}
+              />
+            )}
         </>
     );
 };
 
-const SolarPanelRecommendation = ({ solarPanelWatts, winterFactor, batteryType, totalWattHours, totalDayWh, totalNightWh }) => {
-    const panelOptions = [100, 200, 250, 300, 390, 450, 500];
-    const requiredWinterWatts = solarPanelWatts * winterFactor;
-
+const AboutPage = () => {
     return (
-        <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700">
-            <h3 className="text-xl font-semibold mb-4 text-blue-800 dark:text-blue-300">Solar Panel Combination Guide</h3>
-            <p className="mb-4 text-gray-700 dark:text-gray-300">
-                Based on your daily usage (<strong>{totalDayWh.toFixed(0)}Wh</strong> day, <strong>{totalNightWh.toFixed(0)}Wh</strong> night) and a <strong>{batteryType}</strong> battery, you need <strong>{solarPanelWatts.toFixed(0)}W</strong> of solar panels in summer. For winter, we recommend <strong>{requiredWinterWatts.toFixed(0)}W</strong> (using a {((winterFactor - 1) * 100).toFixed(0)}% winter buffer). Here are some options:
-            </p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                {panelOptions.map(panel => {
-                    const summerCount = Math.ceil(solarPanelWatts / panel);
-                    const winterCount = Math.ceil(requiredWinterWatts / panel);
-                    return (
-                        <div key={panel} className="p-3 bg-white dark:bg-gray-800 rounded-lg shadow text-center">
-                            <h4 className="font-bold text-lg">{panel}W Panel</h4>
-                            <div className="mt-2">
-                                <p className="text-sm text-gray-500 dark:text-gray-400">Summer:</p>
-                                <p className="font-semibold text-blue-600 dark:text-blue-400">{summerCount} panel{summerCount > 1 ? 's' : ''}</p>
-                            </div>
-                            <div className="mt-1">
-                                <p className="text-sm text-gray-500 dark:text-gray-400">Winter:</p>
-                                <p className="font-semibold text-indigo-600 dark:text-indigo-400">{winterCount} panel{winterCount > 1 ? 's' : ''}</p>
-                            </div>
-                        </div>
-                    )
-                })}
+        <div className="space-y-8">
+            <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-md">
+                <h2 className="text-3xl font-bold mb-4 border-b pb-2">How It Works</h2>
+                <p className="mb-4">The Solar System Calculator (SSC) is designed to simplify the process of sizing a residential off-grid solar power system. It uses standard industry formulas to provide reliable estimates for your power needs.</p>
+                <div className="space-y-4">
+                    <div>
+                        <h3 className="text-xl font-semibold">1. Load Analysis</h3>
+                        <p>We calculate your total daily energy consumption in Watt-hours (Wh). Formula: <code>Total Wh = Σ (Appliance Watts × Hours of Use)</code></p>
+                    </div>
+                    <div>
+                        <h3 className="text-xl font-semibold">2. Inverter Sizing</h3>
+                        <p>The inverter must handle the total simultaneous load. We add a 25% safety margin. Formula: <code>Inverter Size (W) = Total Watts × 1.25</code></p>
+                    </div>
+                    <div>
+                        <h3 className="text-xl font-semibold">3. Battery Sizing</h3>
+                        <p>Calculates the required battery bank capacity based on your energy needs, desired autonomy, and battery type efficiency. For example, for Lead-Acid: <code>Capacity (Wh) = (Total Wh × Days of Autonomy) / (0.8 efficiency × 0.5 DoD)</code></p>
+                    </div>
+                     <div>
+                        <h3 className="text-xl font-semibold">4. Solar Panel Sizing</h3>
+                        <p>Determines the solar array wattage needed to recharge your batteries daily. Formula: <code>Panel Watts = Required Battery Wh / Peak Sun Hours</code></p>
+                    </div>
+                </div>
+            </div>
+            
+             <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-md">
+                <h2 className="text-3xl font-bold mb-4 border-b pb-2">Tutorial</h2>
+                <ol className="list-decimal list-inside space-y-2">
+                    <li><strong>Enter Your Loads:</strong> In the "Load Analysis" section, list all the electrical appliances you plan to use, their power rating in Watts, and how many hours per day you'll use them.</li>
+                    <li><strong>Set System Parameters:</strong> Input your desired "Days of Autonomy" (how many cloudy days your system should survive) and the "Peak Sun Hours" for your location.</li>
+                    <li><strong>Choose System Voltage:</strong> Select your preferred DC system voltage (12V, 24V, or 48V). Higher voltage is generally more efficient for larger systems.</li>
+                    <li><strong>Calculate:</strong> Hit the "Calculate System Specs" button.</li>
+                    <li><strong>Review Output:</strong> Scroll down to the "Output Summary" to see the recommended sizes for your inverter, battery bank, solar panels, and charge controller. Use the charts for a visual breakdown.</li>
+                     <li><strong>Check Safe Specs:</strong> For extra reliability, especially in areas with frequent bad weather, click "Show Safe Specs" for oversized recommendations.</li>
+                </ol>
+            </div>
+            
+            <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-md">
+                <h2 className="text-3xl font-bold mb-4 border-b pb-2">About the Developer</h2>
+                <p className="mb-4">This tool was created by a passionate developer dedicated to making renewable energy more accessible. The goal is to empower individuals to make informed decisions about their energy independence.</p>
+                <div className="flex space-x-6">
+                    <a href="https://fidelmudzamba.vercel.app" target="_blank" className="text-blue-500 hover:underline text-lg"><i className="fab fa-solid fa-globe mr-2"></i>Website/Portfolio</a>
+                    <a href="https://github.com" target="_blank" className="text-blue-500 hover:underline text-lg"><i className="fab fa-github mr-2"></i>GitHub</a>
+                    <a href="https://www.linkedin.com/in/fidel-mudzamba-74b11215a" target="_blank" className="text-blue-500 hover:underline text-lg"><i className="fab fa-linkedin mr-2"></i>LinkedIn</a>
+                    <a href="mailto:fidelmudzamba7@gmail.com" className="text-blue-500 hover:underline text-lg"><i className="fas fa-envelope mr-2"></i>Email</a>
+                </div>
             </div>
         </div>
     );
-}
+};
+
+/* @tweakable Safeguard efficiency multiplier for custom calculations. 0.8 means 80% efficiency. */ 
+const customCalcSafeguard = 0.8;
+
+const CustomSystemCheckModal = ({ isOpen, onClose, label }) => {
+    const [inverterW, setInverterW] = useState(1000);
+    const [batteryAh, setBatteryAh] = useState(100);
+    const [batteryV, setBatteryV] = useState(12);
+    const [panelW, setPanelW] = useState(400);
+    const [result, setResult] = useState(null);
+
+    const dailyLoadWh = useMemo(() => parseFloat(localStorage.getItem('ssc_totalWattHours') || 0), [isOpen]);
+    const sunHours = useMemo(() => parseFloat(localStorage.getItem('ssc_sunHours') || 5), [isOpen]);
+    
+    const batteryWh = batteryAh * batteryV;
+    const safeBatteryWh = batteryWh * customCalcSafeguard;
+
+    const calculateCustom = () => {
+        const dailyChargeWh = panelW * sunHours;
+        const netEnergy = dailyChargeWh - dailyLoadWh;
+        const duration = safeBatteryWh / dailyLoadWh;
+
+        let systemStatus;
+        if (netEnergy >= 0) {
+            systemStatus = "✅ Sustainable: Your panels generate more energy than you consume daily. The system should run indefinitely under these conditions.";
+        } else {
+            const daysToDeplete = batteryWh / Math.abs(netEnergy);
+            systemStatus = ` unsustainable. Your battery will be fully depleted in ~${daysToDeplete.toFixed(1)} days if not recharged by other means.`;
+            if (dailyChargeWh > 0) {
+                systemStatus = `⚠️ Not Sustainable: Your panels help, but can't keep up with the daily load.` + systemStatus;
+            } else {
+                systemStatus = `❌ Unsustainable: You have no solar input.` + systemStatus;
+            }
+        }
+        
+        setResult({ duration, netEnergy, systemStatus });
+    };
+
+const downloadPDF = () => {
+    const doc = new jsPDF();
+
+    // Title section (header)
+    doc.setFillColor(33, 150, 243); // Blue header
+    doc.rect(0, 0, 210, 20, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(16);
+    doc.text("Custom System Check Report", 105, 13, { align: "center" });
+
+    // Reset text color and font size for body
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(12);
+
+    let y = 30;
+
+    // Specs Table
+    doc.setFont("helvetica", "bold");
+    doc.text("System Specifications", 14, y);
+    y += 6;
+
+    doc.setFont("helvetica", "normal");
+    doc.text(`Inverter: ${inverterW} W`, 14, y); y += 6;
+    doc.text(`Solar Panels: ${panelW} W`, 14, y); y += 6;
+    doc.text(`Battery: ${batteryAh} Ah @ ${batteryV} V (${batteryWh} Wh)`, 14, y); y += 6;
+    doc.text(`Daily Load: ${dailyLoadWh.toFixed(0)} Wh`, 14, y); y += 6;
+    doc.text(`Sun Hours: ${sunHours} h`, 14, y); y += 10;
+
+    // Results Table
+    if (result) {
+        doc.setFont("helvetica", "bold");
+        doc.text("Calculation Results", 14, y);
+        y += 6;
+
+        doc.setFont("helvetica", "normal");
+        doc.text(
+            `System Autonomy: ${result.duration.toFixed(1)} days (${(result.duration * 24).toFixed(1)} hrs)`,
+            14,
+            y
+        );
+        y += 6;
+
+        doc.text(`Daily Energy Balance: ${result.netEnergy.toFixed(0)} Wh`, 14, y);
+        y += 8;
+
+        // Status with proper wrap & consistent font size
+        doc.setFontSize(10);
+        const maxTextWidth = 35;
+        const statusText = doc.splitTextToSize(`Status: ${result.systemStatus}`, maxTextWidth).map(line => line.trimStart());
+        doc.text(statusText, 14, y);
+        y += statusText.length * 6;
+
+        // Reset font size to default for footer
+        doc.setFontSize(10);
+    }
+
+    // Footer block
+    const footerHeight = 20;
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+
+    doc.setFillColor(33, 150, 243); // same blue as header
+    doc.rect(0, pageHeight - footerHeight, pageWidth, footerHeight, "F");
+
+    const footerText = "Generated by Solar System Calculator (webTool developed by Fidel M. Mudzamba. Click for more info)";
+    const url = "https://fidelmudzamba.vercel.app";
+
+    // Set white text for footer
+    doc.setTextColor(255, 255, 255);
+
+    // Calculate text width for centering
+    const textWidth = doc.getTextWidth(footerText);
+    const x = (pageWidth - textWidth) / 2;
+    const footerTextY = pageHeight - footerHeight / 2 + 4; // vertically centered approx
+
+    doc.text(footerText, x, footerTextY);
+
+    // Add clickable link rectangle over the footer text
+    doc.link(x, footerTextY - 7, textWidth, 10, { url: url });
+
+    // Save PDF
+    doc.save("custom-system-check.pdf");
+};
+
+
+    if (!isOpen) return null;
+
+    const modalMaxHeight = '90vh';
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
+            <div
+                className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl overflow-y-auto"
+                style={{ maxHeight: modalMaxHeight }}
+            >
+                <div className="flex justify-between items-center sticky top-0 bg-white dark:bg-gray-800 py-4 px-6 z-10 border-b border-gray-200 dark:border-gray-700">
+                    <h2 className="text-2xl font-bold">Custom System Check</h2>
+                    <button
+                        onClick={onClose}
+                        className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors flex items-center"
+                    >
+                        <i className="fas fa-times mr-2"></i> {label || 'Close'}
+                    </button>
+                </div>
+
+                <div className="p-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                        <div>
+                            <label className="block font-medium mb-1">Your Inverter (W)</label>
+                            <input
+                                type="number"
+                                value={inverterW}
+                                onChange={e => setInverterW(parseFloat(e.target.value))}
+                                className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700"
+                            />
+                        </div>
+                        <div>
+                            <label className="block font-medium mb-1">Total Solar Panel (W)</label>
+                            <input
+                                type="number"
+                                value={panelW}
+                                onChange={e => setPanelW(parseFloat(e.target.value))}
+                                className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700"
+                            />
+                        </div>
+                        <div>
+                            <label className="block font-medium mb-1">Battery Capacity (Ah)</label>
+                            <input
+                                type="number"
+                                value={batteryAh}
+                                onChange={e => setBatteryAh(parseFloat(e.target.value))}
+                                className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700"
+                            />
+                        </div>
+                        <div>
+                            <label className="block font-medium mb-1">Battery Voltage (V)</label>
+                            <select
+                                value={batteryV}
+                                onChange={e => setBatteryV(parseInt(e.target.value))}
+                                className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700"
+                            >
+                                <option value="12">12V</option>
+                                <option value="24">24V</option>
+                                <option value="48">48V</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div className="p-4 bg-gray-100 dark:bg-gray-900 rounded-md mb-6">
+                        <p>
+                            Daily Load: <span className="font-bold">{dailyLoadWh.toFixed(0)} Wh</span> (from calculator)
+                        </p>
+                        <p>
+                            Total Battery: <span className="font-bold">{batteryWh.toFixed(0)} Wh</span> ({batteryAh}Ah @ {batteryV}V)
+                        </p>
+                        <p>
+                            Sun Hours: <span className="font-bold">{sunHours} h</span> (from calculator)
+                        </p>
+                    </div>
+
+                    <button
+                        onClick={calculateCustom}
+                        className="w-full py-3 bg-blue-500 text-white font-bold rounded-lg hover:bg-blue-600 transition-colors"
+                    >
+                        Check My System
+                    </button>
+
+                    {result && (
+                        <div className="mt-6 p-4 bg-green-50 dark:bg-green-900/30 rounded-lg animate-fade-in">
+                            <h3 className="text-xl font-bold mb-2">Results</h3>
+                            <p>
+                                <strong>System Autonomy:</strong> Your battery can power your load for approximately{" "}
+                                <strong className="text-xl text-blue-600 dark:text-blue-400">
+                                    {result.duration.toFixed(1)} days ({(result.duration * 24).toFixed(1)} hours)
+                                </strong>{" "}
+                                from a full charge, with a {((1 - customCalcSafeguard) * 100).toFixed(0)}% safety buffer.
+                            </p>
+                            <p className="mt-2">
+                                <strong>Daily Energy Balance:</strong> Your system has a daily net of{" "}
+                                <strong
+                                    className={`text-xl ${
+                                        result.netEnergy >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
+                                    }`}
+                                >
+                                    {result.netEnergy.toFixed(0)} Wh
+                                </strong>
+                                .
+                            </p>
+                            <p className="mt-2">
+                                <strong>Status:</strong> {result.systemStatus}
+                            </p>
+                        </div>
+                    )}
+
+                    {/* Download PDF button */}
+                    {result && (
+                        <button
+                            onClick={downloadPDF}
+                            className="mt-6 w-full py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 transition-colors"
+                        >
+                            Download PDF
+                        </button>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const PackagesTiles = ({ packages, expandedKey, onExpand, onOpenModal }) => {
+  return (
+    <section aria-label="Common 24-hour solar packages" className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
+      <h3 className="text-2xl font-bold mb-3 text-gray-800 dark:text-white">Common 24-hour Solar Setups</h3>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        {packages.map((p, idx) => (
+          <article
+            key={p.key}
+            className="package-card-anim bg-gray-50 dark:bg-gray-700 rounded-lg shadow hover:shadow-lg transition-shadow focus-within:ring-2 ring-blue-500 relative pb-14"
+            style={{ animationDelay: `${idx * packageStaggerMs}ms` }}
+          >
+            <button
+              onClick={() => onExpand(p.key)}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onExpand(p.key); } }}
+              aria-label={`View details for ${p.name} solar package.`}
+              className="w-full text-left p-4 rounded-lg hover:bg-white/60 dark:hover:bg-gray-600/60 transition-colors"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <i className={`fas ${p.icon} text-blue-600 dark:text-blue-400`} aria-hidden="true"></i>
+                  <div>
+                    <h4 className="text-lg font-semibold">{p.name}</h4>
+                    <p className="text-sm text-gray-600 dark:text-gray-300">{p.dailyWh} Wh/day (est.)</p>
+                  </div>
+                </div>
+                <i className={`fas fa-chevron-down transition-transform ${expandedKey === p.key ? 'rotate-180' : ''}`} aria-hidden="true"></i>
+              </div>
+            </button>
+            {expandedKey === p.key && (
+              <div className="px-4 pb-12">
+                <ul className="text-sm text-gray-700 dark:text-gray-200 space-y-1">
+                  <li><strong>PV:</strong> {p.specs.pv}</li>
+                  <li><strong>Battery (LiFePO₄):</strong> {p.specs.battery_lfp}</li>
+                  <li><strong>Battery (Lead-Acid):</strong> {p.specs.battery_la}</li>
+                  <li><strong>Inverter:</strong> {p.specs.inverter}</li>
+                  <li><strong>Controller:</strong> {p.specs.controller}</li>
+                </ul>
+                <p className="text-xs mt-2 text-gray-500 dark:text-gray-400"><strong>Runs:</strong> {p.specs.runs.join(', ')}</p>
+              </div>
+            )}
+            {/* Center-bottom CTA */}
+            <div className="absolute left-1/2 -translate-x-1/2 bottom-3">
+              <button
+                onClick={() => onOpenModal(p)}
+                className={tileCtaClasses}
+              >
+                {tileCtaLabel}
+              </button>
+            </div>
+            {/* Bottom-right download icon when expanded */}
+            {showTileDownloadWhenExpanded && expandedKey === p.key && (
+              <button
+                aria-label={`Download details for ${p.name}`}
+                onClick={() => downloadPkg(p)}
+                className={`absolute bottom-3 right-3 ${tileDownloadBtnSize} flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 transition`}
+                title="Download"
+              >
+                <i className="fas fa-download text-gray-700 dark:text-gray-100"></i>
+              </button>
+            )}
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+};
+
+const PackageDetailsModal = ({ pkg, onClose }) => {
+  if (!pkg) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-label={`${pkg.name} details`}>
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-lg relative">
+        <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 p-4">
+          <h4 className="text-xl font-bold">{pkg.name}</h4>
+          <button onClick={onClose} className="px-3 py-1 bg-gray-200 dark:bg-gray-600 rounded hover:bg-gray-300 dark:hover:bg-gray-500">
+            <i className="fas fa-times mr-1"></i> Close
+          </button>
+        </div>
+        <div className="p-5 space-y-2">
+          <p className="text-sm text-gray-600 dark:text-gray-300"><strong>Estimated daily load:</strong> {pkg.dailyWh} Wh/day</p>
+          <ul className="text-sm text-gray-800 dark:text-gray-100 space-y-1">
+            <li><strong>PV Array:</strong> {pkg.specs.pv}</li>
+            <li><strong>Battery (LiFePO4):</strong> {pkg.specs.battery_lfp}</li>
+            <li><strong>Battery (Lead-Acid):</strong> {pkg.specs.battery_la}</li>
+            <li><strong>Inverter:</strong> {pkg.specs.inverter}</li>
+            <li><strong>Charge Controller:</strong> {pkg.specs.controller}</li>
+          </ul>
+          <div>
+            <p className="text-sm text-gray-600 dark:text-gray-300"><strong>Runs over 24h:</strong></p>
+            <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-200">
+              {pkg.specs.runs.map((r, i) => <li key={i}>{r}</li>)}
+            </ul>
+          </div>
+        </div>
+        <button
+          aria-label={modalDownloadBtnTitle}
+          title={modalDownloadBtnTitle}
+          onClick={() => downloadPkg(pkg)}
+          className={`${modalDownloadBtnClasses} ${modalDownloadBtnSize}`}
+        >
+          <i className="fas fa-download"></i>
+        </button>
+      </div>
+    </div>
+  );
+};
 
 /* @tweakable Common battery sizes in Amp-hours (Ah) for different voltages. */
 const batteryBankOptions = {
@@ -1061,302 +1486,172 @@ const OutputSummary = ({ output, showSafeSpecs, setShowSafeSpecs, handleDownload
     );
 };
 
-const AboutPage = () => {
+const SolarPanelRecommendation = ({ solarPanelWatts, winterFactor, batteryType, totalWattHours, totalDayWh, totalNightWh }) => {
+    const panelOptions = [100, 200, 250, 300, 390, 450, 500];
+    const requiredWinterWatts = solarPanelWatts * winterFactor;
+
     return (
-        <div className="space-y-8">
-            <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-md">
-                <h2 className="text-3xl font-bold mb-4 border-b pb-2">How It Works</h2>
-                <p className="mb-4">The Solar System Calculator (SSC) is designed to simplify the process of sizing a residential off-grid solar power system. It uses standard industry formulas to provide reliable estimates for your power needs.</p>
-                <div className="space-y-4">
-                    <div>
-                        <h3 className="text-xl font-semibold">1. Load Analysis</h3>
-                        <p>We calculate your total daily energy consumption in Watt-hours (Wh). Formula: <code>Total Wh = Σ (Appliance Watts × Hours of Use)</code></p>
-                    </div>
-                    <div>
-                        <h3 className="text-xl font-semibold">2. Inverter Sizing</h3>
-                        <p>The inverter must handle the total simultaneous load. We add a 25% safety margin. Formula: <code>Inverter Size (W) = Total Watts × 1.25</code></p>
-                    </div>
-                    <div>
-                        <h3 className="text-xl font-semibold">3. Battery Sizing</h3>
-                        <p>Calculates the required battery bank capacity based on your energy needs, desired autonomy, and battery type efficiency. For example, for Lead-Acid: <code>Capacity (Wh) = (Total Wh × Days of Autonomy) / (0.8 efficiency × 0.5 DoD)</code></p>
-                    </div>
-                     <div>
-                        <h3 className="text-xl font-semibold">4. Solar Panel Sizing</h3>
-                        <p>Determines the solar array wattage needed to recharge your batteries daily. Formula: <code>Panel Watts = Required Battery Wh / Peak Sun Hours</code></p>
-                    </div>
-                </div>
-            </div>
-            
-             <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-md">
-                <h2 className="text-3xl font-bold mb-4 border-b pb-2">Tutorial</h2>
-                <ol className="list-decimal list-inside space-y-2">
-                    <li><strong>Enter Your Loads:</strong> In the "Load Analysis" section, list all the electrical appliances you plan to use, their power rating in Watts, and how many hours per day you'll use them.</li>
-                    <li><strong>Set System Parameters:</strong> Input your desired "Days of Autonomy" (how many cloudy days your system should survive) and the "Peak Sun Hours" for your location.</li>
-                    <li><strong>Choose System Voltage:</strong> Select your preferred DC system voltage (12V, 24V, or 48V). Higher voltage is generally more efficient for larger systems.</li>
-                    <li><strong>Calculate:</strong> Hit the "Calculate System Specs" button.</li>
-                    <li><strong>Review Output:</strong> Scroll down to the "Output Summary" to see the recommended sizes for your inverter, battery bank, solar panels, and charge controller. Use the charts for a visual breakdown.</li>
-                     <li><strong>Check Safe Specs:</strong> For extra reliability, especially in areas with frequent bad weather, click "Show Safe Specs" for oversized recommendations.</li>
-                </ol>
-            </div>
-            
-            <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-md">
-                <h2 className="text-3xl font-bold mb-4 border-b pb-2">About the Developer</h2>
-                <p className="mb-4">This tool was created by a passionate developer dedicated to making renewable energy more accessible. The goal is to empower individuals to make informed decisions about their energy independence.</p>
-                <div className="flex space-x-6">
-                    <a href="https://fidelmudzamba.vercel.app" target="_blank" className="text-blue-500 hover:underline text-lg"><i className="fab fa-solid fa-globe mr-2"></i>Website/Portfolio</a>
-                    <a href="https://github.com" target="_blank" className="text-blue-500 hover:underline text-lg"><i className="fab fa-github mr-2"></i>GitHub</a>
-                    <a href="https://www.linkedin.com/in/fidel-mudzamba-74b11215a" target="_blank" className="text-blue-500 hover:underline text-lg"><i className="fab fa-linkedin mr-2"></i>LinkedIn</a>
-                    <a href="mailto:fidelmudzamba7@gmail.com" className="text-blue-500 hover:underline text-lg"><i className="fas fa-envelope mr-2"></i>Email</a>
-                </div>
+        <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700">
+            <h3 className="text-xl font-semibold mb-4 text-blue-800 dark:text-blue-300">Solar Panel Combination Guide</h3>
+            <p className="mb-4 text-gray-700 dark:text-gray-300">
+                Based on your daily usage (<strong>{totalDayWh.toFixed(0)}Wh</strong> day, <strong>{totalNightWh.toFixed(0)}Wh</strong> night) and a <strong>{batteryType}</strong> battery, you need <strong>{solarPanelWatts.toFixed(0)}W</strong> of solar panels in summer. For winter, we recommend <strong>{requiredWinterWatts.toFixed(0)}W</strong> (using a {((winterFactor - 1) * 100).toFixed(0)}% winter buffer). Here are some options:
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                {panelOptions.map(panel => {
+                    const summerCount = Math.ceil(solarPanelWatts / panel);
+                    const winterCount = Math.ceil(requiredWinterWatts / panel);
+                    return (
+                        <div key={panel} className="p-3 bg-white dark:bg-gray-800 rounded-lg shadow text-center">
+                            <h4 className="font-bold text-lg">{panel}W Panel</h4>
+                            <div className="mt-2">
+                                <p className="text-sm text-gray-500 dark:text-gray-400">Summer:</p>
+                                <p className="font-semibold text-blue-600 dark:text-blue-400">{summerCount} panel{summerCount > 1 ? 's' : ''}</p>
+                            </div>
+                            <div className="mt-1">
+                                <p className="text-sm text-gray-500 dark:text-gray-400">Winter:</p>
+                                <p className="font-semibold text-indigo-600 dark:text-indigo-400">{winterCount} panel{winterCount > 1 ? 's' : ''}</p>
+                            </div>
+                        </div>
+                    )
+                })}
             </div>
         </div>
     );
-};
+}
 
-/* @tweakable Safeguard efficiency multiplier for custom calculations. 0.8 means 80% efficiency. */ 
-const customCalcSafeguard = 0.8;
-
-const CustomSystemCheckModal = ({ isOpen, onClose, label }) => {
-    const [inverterW, setInverterW] = useState(1000);
-    const [batteryAh, setBatteryAh] = useState(100);
-    const [batteryV, setBatteryV] = useState(12);
-    const [panelW, setPanelW] = useState(400);
-    const [result, setResult] = useState(null);
-
-    const dailyLoadWh = useMemo(() => parseFloat(localStorage.getItem('ssc_totalWattHours') || 0), [isOpen]);
-    const sunHours = useMemo(() => parseFloat(localStorage.getItem('ssc_sunHours') || 5), [isOpen]);
-    
-    const batteryWh = batteryAh * batteryV;
-    const safeBatteryWh = batteryWh * customCalcSafeguard;
-
-    const calculateCustom = () => {
-        const dailyChargeWh = panelW * sunHours;
-        const netEnergy = dailyChargeWh - dailyLoadWh;
-        const duration = safeBatteryWh / dailyLoadWh;
-
-        let systemStatus;
-        if (netEnergy >= 0) {
-            systemStatus = "✅ Sustainable: Your panels generate more energy than you consume daily. The system should run indefinitely under these conditions.";
-        } else {
-            const daysToDeplete = batteryWh / Math.abs(netEnergy);
-            systemStatus = ` unsustainable. Your battery will be fully depleted in ~${daysToDeplete.toFixed(1)} days if not recharged by other means.`;
-            if (dailyChargeWh > 0) {
-                systemStatus = `⚠️ Not Sustainable: Your panels help, but can't keep up with the daily load.` + systemStatus;
-            } else {
-                systemStatus = `❌ Unsustainable: You have no solar input.` + systemStatus;
-            }
-        }
-        
-        setResult({ duration, netEnergy, systemStatus });
-    };
-
-const downloadPDF = () => {
-    const doc = new jsPDF();
-
-    // Title section (header)
-    doc.setFillColor(33, 150, 243); // Blue header
-    doc.rect(0, 0, 210, 20, "F");
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(16);
-    doc.text("Custom System Check Report", 105, 13, { align: "center" });
-
-    // Reset text color and font size for body
-    doc.setTextColor(0, 0, 0);
-    doc.setFontSize(12);
-
-    let y = 30;
-
-    // Specs Table
-    doc.setFont("helvetica", "bold");
-    doc.text("System Specifications", 14, y);
-    y += 6;
-
-    doc.setFont("helvetica", "normal");
-    doc.text(`Inverter: ${inverterW} W`, 14, y); y += 6;
-    doc.text(`Solar Panels: ${panelW} W`, 14, y); y += 6;
-    doc.text(`Battery: ${batteryAh} Ah @ ${batteryV} V (${batteryWh} Wh)`, 14, y); y += 6;
-    doc.text(`Daily Load: ${dailyLoadWh.toFixed(0)} Wh`, 14, y); y += 6;
-    doc.text(`Sun Hours: ${sunHours} h`, 14, y); y += 10;
-
-    // Results Table
-    if (result) {
-        doc.setFont("helvetica", "bold");
-        doc.text("Calculation Results", 14, y);
-        y += 6;
-
-        doc.setFont("helvetica", "normal");
-        doc.text(
-            `System Autonomy: ${result.duration.toFixed(1)} days (${(result.duration * 24).toFixed(1)} hrs)`,
-            14,
-            y
-        );
-        y += 6;
-
-        doc.text(`Daily Energy Balance: ${result.netEnergy.toFixed(0)} Wh`, 14, y);
-        y += 8;
-
-        // Status with proper wrap & consistent font size
-        doc.setFontSize(10);
-        const maxTextWidth = 35;
-        const statusText = doc.splitTextToSize(`Status: ${result.systemStatus}`, maxTextWidth).map(line => line.trimStart());
-        doc.text(statusText, 14, y);
-        y += statusText.length * 6;
-
-        // Reset font size to default for footer
-        doc.setFontSize(10);
+/* @tweakable Package card animation stagger in ms */
+const packageStaggerMs = 80;
+/* @tweakable Duration of slide-down reveal in ms */
+const packageRevealMs = 400;
+/* @tweakable Default 24-hour package presets */
+const solarPackages = [
+  {
+    key: 'ecolite',
+    name: 'EcoLite',
+    dailyWh: 300,
+    icon: 'fa-leaf',
+    specs: {
+      pv: '2 × 100W panels (200W)',
+      battery_lfp: '12V 50Ah LiFePO₄ (600Wh)',
+      battery_la: '12V 100Ah Lead-Acid (1200Wh, 50% usable)',
+      inverter: '400W Pure Sine',
+      controller: '20A MPPT',
+      runs: ['2× LED bulbs', 'Phone charging', 'WiFi router', 'Small fan (few hours)']
     }
+  },
+  {
+    key: 'ecobasic',
+    name: 'EcoBasic',
+    dailyWh: 600,
+    icon: 'fa-sun',
+    specs: {
+      pv: '2 × 200W panels (400W)',
+      battery_lfp: '12V 100Ah LiFePO₄ (1200Wh)',
+      battery_la: '12V 200Ah Lead-Acid (2400Wh, 50% usable)',
+      inverter: '800W Pure Sine',
+      controller: '30A MPPT',
+      runs: ['LED lighting', 'TV (2–3h)', 'Laptop', 'Router', 'USB chargers']
+    }
+  },
+  {
+    key: 'standard',
+    name: 'Standard Home',
+    dailyWh: 1200,
+    icon: 'fa-house',
+    specs: {
+      pv: '3 × 300W panels (900W)',
+      battery_lfp: '24V 100Ah LiFePO₄ (2400Wh)',
+      battery_la: '24V 200Ah Lead-Acid (4800Wh, 50% usable)',
+      inverter: '1500W Pure Sine',
+      controller: '40–60A MPPT',
+      runs: ['Lights', 'TV', 'Laptop', 'Fridge (efficient)', 'Phone/Router']
+    }
+  },
+  {
+    key: 'premium',
+    name: 'Premium Power',
+    dailyWh: 2500,
+    icon: 'fa-bolt',
+    specs: {
+      pv: '4 × 450W panels (1800W)',
+      battery_lfp: '48V 100Ah LiFePO₄ (4800Wh)',
+      battery_la: '48V 300Ah Lead-Acid (14400Wh, 50% usable)',
+      inverter: '3000W Pure Sine',
+      controller: '80A MPPT',
+      runs: ['Lights', 'Large fridge', 'TV', 'Computers', 'Small tools (short use)']
+    }
+  },
+  {
+    key: 'maxduty',
+    name: 'MaxDuty',
+    dailyWh: 4000,
+    icon: 'fa-solar-panel',
+    specs: {
+      pv: '6 × 450W panels (2700W)',
+      battery_lfp: '48V 150Ah LiFePO₄ (7200Wh)',
+      battery_la: '48V 400Ah Lead-Acid (19200Wh, 50% usable)',
+      inverter: '5000W Pure Sine',
+      controller: '100A MPPT',
+      runs: ['Full lighting', 'Large fridge/freezer', 'Multiple devices', 'Microwave/Tools (short)']
+    }
+  }
+];
 
-    // Footer block
-    const footerHeight = 20;
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
+// @tweakable Label for the tile CTA button
+const tileCtaLabel = "View Details";
+// @tweakable Classes for the tile CTA button styling
+const tileCtaClasses = "px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm shadow";
+// @tweakable Whether to show the small download icon when a card is expanded
+const showTileDownloadWhenExpanded = true;
+// @tweakable Size classes for the small download icon button
+const tileDownloadBtnSize = "w-9 h-9";
+// @tweakable Tooltip/title for the small download icon button
+const tileDownloadBtnTitle = "Download package details";
+// @tweakable Filename prefix used when downloading package details
+const tileDownloadFilenamePrefix = "solar-package-";
 
-    doc.setFillColor(33, 150, 243); // same blue as header
-    doc.rect(0, pageHeight - footerHeight, pageWidth, footerHeight, "F");
+function downloadPkg(pkg) {
+  const lines = [
+    `***************************************************************************`,
+    `Common 24-hour Solar Setups`,
+    `***************************************************************************`,
+    ``,
+    ``,
+    `Package: ${pkg.name}`,
+    `Estimated Daily Load: ${pkg.dailyWh} Wh/day`,
+    `PV: ${pkg.specs.pv}`,
+    `Battery (LiFePO4): ${pkg.specs.battery_lfp}`,
+    `Battery (Lead-Acid): ${pkg.specs.battery_la}`,
+    `Inverter: ${pkg.specs.inverter}`,
+    `Controller: ${pkg.specs.controller}`,
+    `Runs: ${pkg.specs.runs.join(', ')}`,
+    ``,
+    `===========================================================================`,
+    `Generated by Solar System Calculator :`,
+    `===========================================================================`,
+    ``,
+    `webTool developed by Fidel M. Mudzamba. `,
+    ``,
+    `For more info about Tool developer visit https://fidelmudzamba.vercel.app/`,
+    ``
+  ].join('\n');
+  const blob = new Blob([lines], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${tileDownloadFilenamePrefix}${pkg.key}.txt`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
-    const footerText = "Generated by Solar System Calculator (webTool developed by Fidel M. Mudzamba. Click for more info)";
-    const url = "https://fidelmudzamba.vercel.app";
+// @tweakable Label for the vertical nav link to the common setups section
+const commonSetupsNavLabel = "Common Solar Setups";
 
-    // Set white text for footer
-    doc.setTextColor(255, 255, 255);
-
-    // Calculate text width for centering
-    const textWidth = doc.getTextWidth(footerText);
-    const x = (pageWidth - textWidth) / 2;
-    const footerTextY = pageHeight - footerHeight / 2 + 4; // vertically centered approx
-
-    doc.text(footerText, x, footerTextY);
-
-    // Add clickable link rectangle over the footer text
-    doc.link(x, footerTextY - 7, textWidth, 10, { url: url });
-
-    // Save PDF
-    doc.save("custom-system-check.pdf");
-};
-
-
-    if (!isOpen) return null;
-
-    const modalMaxHeight = '90vh';
-
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
-            <div
-                className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl overflow-y-auto"
-                style={{ maxHeight: modalMaxHeight }}
-            >
-                <div className="flex justify-between items-center sticky top-0 bg-white dark:bg-gray-800 py-4 px-6 z-10 border-b border-gray-200 dark:border-gray-700">
-                    <h2 className="text-2xl font-bold">Custom System Check</h2>
-                    <button
-                        onClick={onClose}
-                        className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors flex items-center"
-                    >
-                        <i className="fas fa-times mr-2"></i> {label || 'Close'}
-                    </button>
-                </div>
-
-                <div className="p-8">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                        <div>
-                            <label className="block font-medium mb-1">Your Inverter (W)</label>
-                            <input
-                                type="number"
-                                value={inverterW}
-                                onChange={e => setInverterW(parseFloat(e.target.value))}
-                                className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700"
-                            />
-                        </div>
-                        <div>
-                            <label className="block font-medium mb-1">Total Solar Panel (W)</label>
-                            <input
-                                type="number"
-                                value={panelW}
-                                onChange={e => setPanelW(parseFloat(e.target.value))}
-                                className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700"
-                            />
-                        </div>
-                        <div>
-                            <label className="block font-medium mb-1">Battery Capacity (Ah)</label>
-                            <input
-                                type="number"
-                                value={batteryAh}
-                                onChange={e => setBatteryAh(parseFloat(e.target.value))}
-                                className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700"
-                            />
-                        </div>
-                        <div>
-                            <label className="block font-medium mb-1">Battery Voltage (V)</label>
-                            <select
-                                value={batteryV}
-                                onChange={e => setBatteryV(parseInt(e.target.value))}
-                                className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700"
-                            >
-                                <option value="12">12V</option>
-                                <option value="24">24V</option>
-                                <option value="48">48V</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div className="p-4 bg-gray-100 dark:bg-gray-900 rounded-md mb-6">
-                        <p>
-                            Daily Load: <span className="font-bold">{dailyLoadWh.toFixed(0)} Wh</span> (from calculator)
-                        </p>
-                        <p>
-                            Total Battery: <span className="font-bold">{batteryWh.toFixed(0)} Wh</span> ({batteryAh}Ah @ {batteryV}V)
-                        </p>
-                        <p>
-                            Sun Hours: <span className="font-bold">{sunHours} h</span> (from calculator)
-                        </p>
-                    </div>
-
-                    <button
-                        onClick={calculateCustom}
-                        className="w-full py-3 bg-blue-500 text-white font-bold rounded-lg hover:bg-blue-600 transition-colors"
-                    >
-                        Check My System
-                    </button>
-
-                    {result && (
-                        <div className="mt-6 p-4 bg-green-50 dark:bg-green-900/30 rounded-lg animate-fade-in">
-                            <h3 className="text-xl font-bold mb-2">Results</h3>
-                            <p>
-                                <strong>System Autonomy:</strong> Your battery can power your load for approximately{" "}
-                                <strong className="text-xl text-blue-600 dark:text-blue-400">
-                                    {result.duration.toFixed(1)} days ({(result.duration * 24).toFixed(1)} hours)
-                                </strong>{" "}
-                                from a full charge, with a {((1 - customCalcSafeguard) * 100).toFixed(0)}% safety buffer.
-                            </p>
-                            <p className="mt-2">
-                                <strong>Daily Energy Balance:</strong> Your system has a daily net of{" "}
-                                <strong
-                                    className={`text-xl ${
-                                        result.netEnergy >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
-                                    }`}
-                                >
-                                    {result.netEnergy.toFixed(0)} Wh
-                                </strong>
-                                .
-                            </p>
-                            <p className="mt-2">
-                                <strong>Status:</strong> {result.systemStatus}
-                            </p>
-                        </div>
-                    )}
-
-                    {/* Download PDF button */}
-                    {result && (
-                        <button
-                            onClick={downloadPDF}
-                            className="mt-6 w-full py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 transition-colors"
-                        >
-                            Download PDF
-                        </button>
-                    )}
-                </div>
-            </div>
-        </div>
-    );
-};
+// @tweakable Classes for the modal's bottom-right download icon button
+const modalDownloadBtnClasses = "absolute bottom-3 right-3 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-100 shadow";
+// @tweakable Size classes for the modal download icon button
+const modalDownloadBtnSize = "w-10 h-10";
+// @tweakable Tooltip/title for the modal download button
+const modalDownloadBtnTitle = "Download package details";
  
 export default App;

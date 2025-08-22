@@ -9,6 +9,18 @@
   --light-surface: #ffffff; /* white */
   /* @tweakable Light mode footer color */
   --light-footer: #f3f4f6; /* bg-gray-100 */
+  /* @tweakable Max width (in px) for showing the hamburger and hiding top nav links on phones */
+  --hamburger-phone-max-width: 430px;
+  /* @tweakable Base padding for About page cards */
+  --about-card-padding: 2rem;
+  /* @tweakable About page card padding on phones */
+  --about-card-padding-mobile: 1rem;
+  /* @tweakable About page h2 font size (desktop) */
+  --about-h2-size: 1.875rem; /* ~text-3xl */
+  /* @tweakable About page h2 font size (phones) */
+  --about-h2-size-mobile: 1.5rem; /* ~text-2xl */
+  /* @tweakable About page body font size (phones) */
+  --about-body-size-mobile: 0.95rem;
 }
 
 /* @tweakable Dark mode text color */
@@ -81,6 +93,22 @@ footer.bg-white {
 
 .animate-fade-in {
     animation: fade-in 0.5s ease-out forwards;
+}
+
+@keyframes slide-down {
+  from { max-height: 0; opacity: 0; transform: translateY(-8px); }
+  to { max-height: 2000px; opacity: 1; transform: translateY(0); }
+}
+@keyframes fade-scale-in {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+.packages-enter {
+  overflow: hidden;
+  animation: slide-down 400ms ease forwards;
+}
+.package-card-anim {
+  animation: fade-scale-in 250ms ease forwards;
 }
 
 .theme-switch {
@@ -194,4 +222,132 @@ h2 .label, h2 .icon-only-label {
 .icon-nav-item.active {
     background-color: #2563eb; /* bg-blue-600 */
     color: white;
+}
+
+/* @tweakable Utility to hide top nav links when hamburger appears (≤ 430px) */
+.hide-page-links-on-phones {
+  display: block;
+}
+@media (max-width: 430px) {
+  .hide-page-links-on-phones {
+    display: none !important;
+  }
+}
+
+/* @tweakable Ensure the hamburger menu appears only on phones (≤ 430px) */
+.show-hamburger-phones-only {
+  display: none;
+}
+@media (max-width: 430px) {
+  .show-hamburger-phones-only {
+    display: flex;
+  }
+}
+
+/* @tweakable Standard phone max-width breakpoint (e.g., iPhone 6/7/8/X/12 mini) */
+@media (max-width: 375px) {
+  /* @tweakable Compact CTA text size at smallest screens */
+  #packages-cta { font-size: 0.9rem; }
+  /* @tweakable Reduce card bottom padding on smallest screens */
+  .package-card-anim { padding-bottom: 2.5rem; }
+  /* @tweakable Tighten paddings for small phones */
+  .ssc-main { padding-left: 0.75rem !important; padding-right: 0.75rem !important; }
+  /* @tweakable Make fixed floating buttons more compact on small phones */
+  .fixed.bottom-6.right-6 { bottom: 12px; right: 12px; gap: 0.5rem; }
+  .fixed.bottom-6.right-6 a, .fixed.bottom-6.right-6 button { padding: 0.5rem 0.6rem; font-size: 0.75rem; }
+  /* @tweakable Ensure charts never overflow horizontally */
+  .bg-white.dark\:bg-gray-800.p-4.rounded-lg.shadow-md canvas { width: 100% !important; height: auto !important; }
+}
+
+/* @tweakable Plus/Max phone max-width breakpoint (e.g., 414px devices) */
+@media (max-width: 414px) {
+  /* @tweakable Hide vertical sidebar on most phones */
+  .ssc-aside { display: none !important; }
+  /* @tweakable Remove left offset when sidebar is hidden */
+  .ssc-main { margin-left: 0 !important; }
+  /* @tweakable Allow grids to breathe on narrow screens */
+  #common-setups .grid { grid-template-columns: 1fr !important; }
+}
+
+/* @tweakable Latest Pro Max phone max-width breakpoint (e.g., 430px devices) */
+@media (max-width: 430px) {
+  /* @tweakable Keep sidebar hidden through 430px */
+  .ssc-aside { display: none !important; }
+  .ssc-main { margin-left: 0 !important; }
+  /* @tweakable Prevent section content from being cramped at the edges */
+  .section-content.open { padding-left: 1rem; padding-right: 1rem; }
+}
+
+/* @tweakable Tablet and up min-width breakpoint (≥768px) */
+@media (min-width: 768px) {
+  /* @tweakable Restore default spacing on larger screens */
+  .ssc-main { padding-left: 2.5rem; padding-right: 2.5rem; }
+}
+
+/* Default About page tweaks */
+#about-page .about-card {
+  padding: var(--about-card-padding) !important;
+}
+#about-page h2 {
+  font-size: var(--about-h2-size);
+  line-height: 1.25;
+}
+#about-page p,
+#about-page li {
+  word-wrap: break-word;
+}
+#about-page .about-links a {
+  word-break: break-word;
+}
+
+/* Extra Small Phones (iPhone 4/5) */
+@media (max-width: 320px) {
+  #about-page { padding-left: 0.5rem; padding-right: 0.5rem; }
+  #about-page .about-card { padding: var(--about-card-padding-mobile) !important; }
+  #about-page h2 { font-size: var(--about-h2-size-mobile); }
+  #about-page p, #about-page li { font-size: var(--about-body-size-mobile); }
+  #about-page .about-links { flex-direction: column !important; gap: 0.5rem !important; }
+}
+/* Small Phones */
+@media (max-width: 375px) {
+  #about-page { padding-left: 0.75rem; padding-right: 0.75rem; }
+  #about-page .about-card { padding: var(--about-card-padding-mobile) !important; }
+  #about-page h2 { font-size: var(--about-h2-size-mobile); }
+  #about-page .about-links { flex-direction: column !important; gap: 0.5rem !important; }
+}
+/* Standard Phones */
+@media (max-width: 414px) {
+  #about-page .about-card { padding: var(--about-card-padding-mobile) !important; }
+  #about-page h2 { font-size: var(--about-h2-size-mobile); }
+  #about-page .about-links { flex-direction: column !important; gap: 0.5rem !important; }
+}
+/* Large Phones / Small Tablets */
+@media (max-width: 600px) {
+  #about-page .about-card { padding: var(--about-card-padding-mobile) !important; }
+  #about-page h2 { font-size: var(--about-h2-size-mobile); }
+  #about-page .about-links { flex-direction: column !important; gap: 0.5rem !important; }
+}
+/* Tablets */
+@media (max-width: 768px) {
+  #about-page .about-links { flex-wrap: wrap; gap: 0.75rem; }
+}
+/* Small Laptops */
+@media (max-width: 1024px) {
+  /* no-op for About page (reserved) */
+}
+/* Standard Laptops */
+@media (max-width: 1280px) {
+  /* no-op for About page (reserved) */
+}
+/* Large Laptops / Desktops */
+@media (max-width: 1440px) {
+  /* no-op for About page (reserved) */
+}
+/* HD Desktops */
+@media (max-width: 1920px) {
+  /* no-op for About page (reserved) */
+}
+/* Ultra-wide / 4K */
+@media (min-width: 2560px) {
+  #about-page .about-card { max-width: 1200px; margin-left: auto; margin-right: auto; }
 }

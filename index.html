@@ -6,17 +6,17 @@
     <title>Solar System Calculator (SSC) — Solar panel, battery & inverter sizing tool</title>
     <!-- Primary meta tags -->
     <meta name="description" content="Solar System Calculator (SSC) — free, easy-to-use web tool to size solar panels, batteries and inverters for residential off-grid systems. Calculate load, inverter size, battery capacity and panel wattage in minutes." />
-    <meta name="keywords" content="solar system calculator, solar calculator, battery sizing, inverter sizing, solar panel sizing, off-grid solar, SSC, Wolferonic, Fidel Mudzamba, Fidel Munashe Mudzamba" />
-    <meta name="author" content="Fidel M. Mudzamba, Wolferonic" />
-    <meta name="robots" content="index, follow" />
-    <link rel="canonical" href="/" />
+  <meta name="keywords" content="solar system calculator, solar calculator, battery sizing, inverter sizing, solar panel sizing, off-grid solar, SSC, Wolferonic, Fidel Mudzamba, Fidel Munashe Mudzamba" />
+  <meta name="author" content="Fidel M. Mudzamba, Wolferonic" />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://solarsystemcalculator.vercel.app/" />
     <meta name="theme-color" content="#111827" />
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
     <meta property="og:title" content="Solar System Calculator (SSC) — Solar panel, battery & inverter sizing tool" />
     <meta property="og:description" content="Free web tool to size solar panels, batteries and inverters. Enter your loads and get recommended system specs, charts and PDF reports." />
-    <meta property="og:image" content="/SSC.png" />
+  <meta property="og:image" content="https://solarsystemcalculator.vercel.app/SSC.png" />
     <meta property="og:image:alt" content="Solar System Calculator preview" />
     <meta property="og:url" content="/" />
 
@@ -24,7 +24,7 @@
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Solar System Calculator (SSC) — Solar panel, battery & inverter sizing tool" />
     <meta name="twitter:description" content="Free web tool to size solar panels, batteries and inverters. Enter your loads and get recommended system specs, charts and PDF reports." />
-    <meta name="twitter:image" content="/SSC.png" />
+  <meta name="twitter:image" content="https://solarsystemcalculator.vercel.app/SSC.png" />
 
     <!-- Preconnects & styles -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -37,20 +37,48 @@
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
-      "@type": "SoftwareApplication",
-      "name": "Solar System Calculator (SSC)",
-      "alternateName": ["Wolferonic", "Fidel mudzamba", "fidel Munashe Mudzamba", "Wolferonic Zw"],
-      "description": "Web-based Solar System Calculator to help size solar panels, batteries and inverters for residential off-grid systems.",
-      "applicationCategory": "BusinessApplication",
-      "operatingSystem": "All",
-      "url": "/",
-      "image": "/SSC.png",
-      "author": {
-        "@type": "Person",
-        "name": "Fidel M. Mudzamba",
-        "url": "https://fidelmudzamba.vercel.app",
-        "sameAs": ["https://www.linkedin.com/in/fidel-mudzamba-74b11215a/"]
-      }
+      "@graph": [
+        {
+          "@type": "WebSite",
+          "@id": "https://solarsystemcalculator.vercel.app/#website",
+          "url": "https://solarsystemcalculator.vercel.app/",
+          "name": "Solar System Calculator (SSC)",
+          "description": "Free web tool to size solar panels, batteries and inverters for residential off-grid systems.",
+          "publisher": {
+            "@id": "https://solarsystemcalculator.vercel.app/#org"
+          }
+        },
+        {
+          "@type": "Organization",
+          "@id": "https://solarsystemcalculator.vercel.app/#org",
+          "name": "Wolferonic",
+          "url": "https://solarsystemcalculator.vercel.app/",
+          "sameAs": ["https://solarsystemcalculator.vercel.app/"],
+          "logo": "https://solarsystemcalculator.vercel.app/SSC.png"
+        },
+        {
+          "@type": "Person",
+          "@id": "https://solarsystemcalculator.vercel.app/#person-fidel",
+          "name": "Fidel Munashe Mudzamba",
+          "givenName": "Fidel",
+          "familyName": "Mudzamba",
+          "url": "https://fidelmudzamba.vercel.app",
+          "sameAs": ["https://www.linkedin.com/in/fidel-mudzamba-74b11215a/"]
+        },
+        {
+          "@type": "SoftwareApplication",
+          "@id": "https://solarsystemcalculator.vercel.app/#software",
+          "name": "Solar System Calculator (SSC)",
+          "alternateName": ["SSC", "Wolferonic"],
+          "description": "Web-based Solar System Calculator that helps size solar panels, batteries and inverters for residential off-grid systems.",
+          "applicationCategory": "BusinessApplication",
+          "operatingSystem": "All",
+          "url": "https://solarsystemcalculator.vercel.app/",
+          "image": "https://solarsystemcalculator.vercel.app/SSC.png",
+          "author": { "@id": "https://solarsystemcalculator.vercel.app/#person-fidel" },
+          "publisher": { "@id": "https://solarsystemcalculator.vercel.app/#org" }
+        }
+      ]
     }
     </script>
   </head>

@@ -1,0 +1,9 @@
+User-agent: *
+Disallow:
+
+# Allow common static assets
+Allow: /public/
+Allow: /src/
+
+Sitemap: /sitemap.xml
+Host: /

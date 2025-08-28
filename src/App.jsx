@@ -35,20 +35,6 @@ const App = () => {
         }
     }, [isDark]);
 
-  // Set basic meta tags for SPA behavior (helps when pages are shared)
-  useEffect(() => {
-    document.title = 'Solar System Calculator (SSC) — Solar panel, battery & inverter sizing tool';
-    const desc = document.querySelector('meta[name="description"]');
-    if (desc) desc.setAttribute('content', 'Solar System Calculator (SSC) — free, easy-to-use web tool to size solar panels, batteries and inverters for residential off-grid systems.');
-    // ensure canonical exists
-    if (!document.querySelector('link[rel="canonical"]')) {
-      const link = document.createElement('link');
-      link.setAttribute('rel', 'canonical');
-      link.setAttribute('href', '/');
-      document.head.appendChild(link);
-    }
-  }, []);
-
     const toggleTheme = () => setIsDark(!isDark);
 
     const navClasses = "px-4 py-2 rounded-md hover:bg-blue-500 hover:text-white transition-colors duration-300 cursor-pointer";
@@ -250,27 +236,23 @@ const AboutPage = () => {
             
             <div className="about-card bg-white dark:bg-gray-800 p-8 rounded-lg shadow-md">
                 <h2 className="text-3xl font-bold mb-4 border-b pb-2">Tutorial</h2>
-        <ol className="list-decimal list-inside space-y-2">
-          <li><strong>Enter your loads:</strong> Open <em>Load Analysis</em>, click <strong>+ Add Device</strong> and add each appliance. For AC devices enter Watts; for DC enter Volts and Amps. Set quantity and Day/Night hours. Use the trash icon to remove an entry.</li>
-          <li><strong>Set system parameters:</strong> Choose <strong>Days of Autonomy</strong> (how many cloudy days to cover), pick <strong>System Voltage</strong> (12V, 24V, 48V) and select a <strong>Battery Type</strong> (Lithium, Flooded, Gel, AGM).</li>
-          <li><strong>Provide sun data:</strong> Enter your location's <strong>Peak Sun Hours</strong> (typical: 4–6). This is used to size the solar array.</li>
-          <li><strong>Calculate:</strong> Click the <strong>Calculate System Specs</strong> button (bottom of the page). The tool computes inverter size, battery capacity for different chemistries, required panel wattage and controller amps, and stores results locally.</li>
-          <li><strong>Review output & charts:</strong> In <em>Output Summary</em> you get KPI tiles, charts (system balance, AC/DC split, day vs night), battery and panel combination guides, and recommended specs for your selected battery type.</li>
-          <li><strong>Export results:</strong> Use the <strong>Download PDF</strong> button inside the Output Summary to export a printable report. You can also download package details from each common setup card.</li>
-          <li><strong>Use common setups:</strong> Click <strong>View Common Solar Setups</strong> to browse pre-built packages, open details and download or copy specs—handy for quick estimates.</li>
-          <li><strong>Custom system checks:</strong> Use the floating <em>Custom System Check</em> button to test a specific inverter/panel/battery combination and generate a PDF report with system autonomy and status.</li>
-          <li><strong>Tips:</strong> Compare different battery chemistries, increase days of autonomy for winter, and favor higher system voltages for larger systems to reduce cable losses.</li>
-          <li><strong>Accessibility & mobile:</strong> The site supports keyboard actions (Enter/Space on package cards) and a responsive hamburger menu on small screens—use the mobile menu to access sections quickly.</li>
-        </ol>
+                <ol className="list-decimal list-inside space-y-2">
+                    <li><strong>Enter Your Loads:</strong> In the "Load Analysis" section, list all the electrical appliances you plan to use, their power rating in Watts, and how many hours per day you'll use them.</li>
+                    <li><strong>Set System Parameters:</strong> Input your desired "Days of Autonomy" (how many cloudy days your system should survive) and the "Peak Sun Hours" for your location.</li>
+                    <li><strong>Choose System Voltage:</strong> Select your preferred DC system voltage (12V, 24V, or 48V). Higher voltage is generally more efficient for larger systems.</li>
+                    <li><strong>Calculate:</strong> Hit the "Calculate System Specs" button.</li>
+                    <li><strong>Review Output:</strong> Scroll down to the "Output Summary" to see the recommended sizes for your inverter, battery bank, solar panels, and charge controller. Use the charts for a visual breakdown.</li>
+                     <li><strong>Check Safe Specs:</strong> For extra reliability, especially in areas with frequent bad weather, click "Show Safe Specs" for oversized recommendations.</li>
+                </ol>
             </div>
             
             <div className="about-card bg-white dark:bg-gray-800 p-8 rounded-lg shadow-md">
                 <h2 className="text-3xl font-bold mb-4 border-b pb-2">About the Developer</h2>
                 <p className="mb-4">This tool was created by a passionate developer dedicated to making renewable energy more accessible. The goal is to empower individuals to make informed decisions about their energy independence.</p>
                 <div className="about-links flex space-x-6">
-                    <a href="https://fidelmudzamba.vercel.app" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline text-lg" aria-label="Fidel Mudzamba website"><i className={`${aboutWebsiteIconClass} mr-2`}></i>Website/Portfolio</a>
-                    <a href="https://github.com" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline text-lg" aria-label="Fidel's GitHub"><i className="fab fa-github mr-2"></i>GitHub</a>
-                    <a href="https://www.linkedin.com/in/fidel-mudzamba-74b11215a/" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline text-lg" aria-label="Fidel Mudzamba LinkedIn"><i className="fab fa-linkedin mr-2"></i>LinkedIn</a>
+                    <a href="https://fidelmudzamba.vercel.app" target="_blank" className="text-blue-500 hover:underline text-lg"><i className={`${aboutWebsiteIconClass} mr-2`}></i>Website/Portfolio</a>
+                    <a href="https://github.com" target="_blank" className="text-blue-500 hover:underline text-lg"><i className="fab fa-github mr-2"></i>GitHub</a>
+                    <a href="https://www.linkedin.com/in/fidel-mudzamba-74b11215a" target="_blank" className="text-blue-500 hover:underline text-lg"><i className="fab fa-linkedin mr-2"></i>LinkedIn</a>
                     <a href="mailto:fidelmudzamba7@gmail.com" className="text-blue-500 hover:underline text-lg"><i className="fas fa-envelope mr-2"></i>Email</a>
                     {/* New WhatsApp and Call links */}
                     <a
@@ -409,8 +391,8 @@ const CustomSystemCheckModal = ({ isOpen, onClose, label }) => {
   const [panelW, setPanelW] = useState(400);
   const [result, setResult] = useState(null);
 
-  const dailyLoadWh = useMemo(() => parseFloat(localStorage.getItem('ssc_totalWattHours') || 0), []);
-  const sunHours = useMemo(() => parseFloat(localStorage.getItem('ssc_sunHours') || 5), []);
+  const dailyLoadWh = useMemo(() => parseFloat(localStorage.getItem('ssc_totalWattHours') || 0), [isOpen]);
+  const sunHours = useMemo(() => parseFloat(localStorage.getItem('ssc_sunHours') || 5), [isOpen]);
 
   const batteryWh = batteryAh * batteryV;
   const safeBatteryWh = batteryWh * customCalcSafeguard;
@@ -614,7 +596,7 @@ const Footer = () => {
       <p>Made with ❤️ to help you harness the power of the sun</p>
       <p>
         {footerAuthorPrefix}
-        <a href={footerAuthorUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline" aria-label="Author website">
+        <a href={footerAuthorUrl} target="_blank" rel="noopener" className="text-blue-600 dark:text-blue-400 hover:underline">
           {footerAuthorName}
         </a>
       </p>
@@ -679,7 +661,7 @@ const BatteryRecommendation = ({ requiredWh, systemVoltage, batteryType }) => {
   );
 };
 
-const SolarPanelRecommendation = ({ solarPanelWatts, winterFactor, batteryType, totalDayWh, totalNightWh }) => {
+const SolarPanelRecommendation = ({ solarPanelWatts, winterFactor, batteryType, totalWattHours, totalDayWh, totalNightWh }) => {
   const panelOptions = [100, 200, 250, 300, 390, 450, 500];
   const requiredWinterWatts = solarPanelWatts * winterFactor;
   return (
@@ -711,7 +693,7 @@ const SolarPanelRecommendation = ({ solarPanelWatts, winterFactor, batteryType, 
   );
 };
 
-const OutputSummary = ({ output, handleDownloadPdf, winterFactor }) => {
+const OutputSummary = ({ output, showSafeSpecs, setShowSafeSpecs, handleDownloadPdf, winterFactor }) => {
   const { totalDayWh, totalNightWh, totalWattHours, totalACWatts, inverterSize, batterySizing, solarPanelWatts, controllerAmps, devices, sunHours, daysOfAutonomy, batteryType, systemVoltage, totalAcWh, totalDcWh } = output;
 
   const allBatteryTypes = Object.keys(batterySizing);
@@ -747,7 +729,10 @@ const OutputSummary = ({ output, handleDownloadPdf, winterFactor }) => {
     }
   };
 
-  // safe specs intentionally omitted from display calculations (kept for future use)
+  const safeSpecs = { days: 3, panelBuffer: 1.3, inverterBuffer: 1.3 };
+  const safeBatteryWh = (totalWattHours * safeSpecs.days) / (0.8 * 0.5);
+  const safePanelWatts = (safeBatteryWh / sunHours) * safeSpecs.panelBuffer;
+  const safeInverterSize = totalACWatts * safeSpecs.inverterBuffer;
 
   return (
     <div id="output-summary" className="mt-10 p-4 sm:p-8 bg-gray-50 dark:bg-gray-900/50 rounded-lg shadow-xl">
@@ -828,6 +813,7 @@ const OutputSummary = ({ output, handleDownloadPdf, winterFactor }) => {
         solarPanelWatts={solarPanelWatts}
         winterFactor={winterFactor}
         batteryType={batteryType}
+        totalWattHours={totalWattHours}
         totalDayWh={totalDayWh}
         totalNightWh={totalNightWh}
       />
@@ -1175,7 +1161,7 @@ const CalculatorPage = ({ setIsCustomCalcOpen }) => {
     const imgWidth = canvas.width, imgHeight = canvas.height;
     const pdf = new jsPDF('p', 'mm', 'a4');
     const pdfWidth = pdf.internal.pageSize.getWidth(), pdfHeight = pdf.internal.pageSize.getHeight();
-  const pdfImgWidth = pdfWidth; const pxPerMm = imgWidth / pdfImgWidth;
+    const ratio = imgWidth / imgHeight; const pdfImgWidth = pdfWidth; const pxPerMm = imgWidth / pdfImgWidth;
     let heightLeft = imgHeight, position = 0;
     while (heightLeft > 0) {
       const pageCanvas = document.createElement('canvas');
@@ -1475,10 +1461,10 @@ function downloadPkg(pkg) {
 const showVerticalNavOnAbout = false;
 
 /* @tweakable Footer author display name */
-const footerAuthorName = "Fidel M. Mudzamba (Wolferonic)";
+const footerAuthorName = "Fidel M. Mudzamba";
 /* @tweakable Footer author portfolio URL */
-const footerAuthorUrl = "https://fidelmudzamba.vercel.app";
+const footerAuthorUrl = "https://fidelmudzamba.vercel.app/";
 /* @tweakable Text that precedes the author name in the footer */
-const footerAuthorPrefix = "By ";
+const footerAuthorPrefix = "; By ";
 
 export default App;

@@ -234,17 +234,30 @@ const AboutPage = () => {
                 </div>
             </div>
             
-            <div className="about-card bg-white dark:bg-gray-800 p-8 rounded-lg shadow-md">
-                <h2 className="text-3xl font-bold mb-4 border-b pb-2">Tutorial</h2>
-                <ol className="list-decimal list-inside space-y-2">
-                    <li><strong>Enter Your Loads:</strong> In the "Load Analysis" section, list all the electrical appliances you plan to use, their power rating in Watts, and how many hours per day you'll use them.</li>
-                    <li><strong>Set System Parameters:</strong> Input your desired "Days of Autonomy" (how many cloudy days your system should survive) and the "Peak Sun Hours" for your location.</li>
-                    <li><strong>Choose System Voltage:</strong> Select your preferred DC system voltage (12V, 24V, or 48V). Higher voltage is generally more efficient for larger systems.</li>
-                    <li><strong>Calculate:</strong> Hit the "Calculate System Specs" button.</li>
-                    <li><strong>Review Output:</strong> Scroll down to the "Output Summary" to see the recommended sizes for your inverter, battery bank, solar panels, and charge controller. Use the charts for a visual breakdown.</li>
-                     <li><strong>Check Safe Specs:</strong> For extra reliability, especially in areas with frequent bad weather, click "Show Safe Specs" for oversized recommendations.</li>
-                </ol>
+      <div className="about-card bg-white dark:bg-gray-800 p-8 rounded-lg shadow-md">
+        <h2 className="text-3xl font-bold mb-4 border-b pb-2">Tutorial</h2>
+        <ol className="list-decimal list-inside space-y-2">
+          <li><strong>Start with Common Setups (optional):</strong> Click the "View Common Solar Setups" button at the top of the Calculator page to preview pre-configured 24-hour packages (EcoLite, Standard Home, Premium Power, etc.). Open a package's <em>View Details</em> to inspect PV, battery and inverter recommendations or download the package details as a reference starting point.</li>
+          <li><strong>Add Your Loads (Load Analysis):</strong> In the "Load Analysis" section, add each appliance or circuit, provide its power (Watts) or voltage+amps for DC devices, set quantity and hours of use (day/night). Use <em>+ Add Device</em> to include all items. The calculator will show Day, Night and Total daily Wh automatically.</li>
+          <li><strong>Set System Parameters:</strong> Choose your preferred system voltage (12V/24V/48V), select the primary battery chemistry, set <em>Days of Autonomy</em>, and enter your site's average <em>Peak Sun Hours</em>.</li>
+          <li><strong>Calculate:</strong> Click the <em>Calculate System Specs</em> button. The app computes inverter size, battery bank capacity, panel wattage and controller amps, and stores the computed total daily load and sun hours in your browser (localStorage) so other tools can reference them.</li>
+          <li><strong>Review Output:</strong> Scroll to the "Output Summary" for recommended inverter, battery and panel sizes, charts, and downloadable PDF of the summary. Use the charts to compare day vs night, AC vs DC, and the system component balance.</li>
+          
+          <li><strong>Custom System Check (final step):</strong> After you have added loads and run <em>Calculate</em>, open the <em>Custom System Check</em> by clicking the purple floating button at the bottom-right. The modal reads your saved <code>Daily Load</code> and <code>Sun Hours</code> (from the calculator/localStorage) and lets you enter a candidate inverter, panel wattage and battery (Ah & V). Click <em>Check My System</em> to see whether that custom configuration is sustainable—results show net daily energy balance, estimated autonomy and a short status message. You can download a PDF report of the custom check.</li>
+        </ol>
+
+        <div className="mt-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+          <div className="flex items-start gap-3">
+            <i className="fas fa-exclamation-triangle text-yellow-700 dark:text-yellow-300 mt-1"></i>
+            <div>
+              <strong className="block text-yellow-800 dark:text-yellow-200">Important</strong>
+              <p className="text-sm text-gray-800 dark:text-gray-200 mt-1">
+                The <strong>Custom System Check</strong> reads the calculator's saved load and sun hours from your browser. If the modal shows <strong>Daily Load: 0 Wh</strong>, please add your devices in <em>Load Analysis</em> and click <em>Calculate System Specs</em> first — otherwise the custom check cannot validate the candidate system against your actual load.
+              </p>
             </div>
+          </div>
+        </div>
+      </div>
             
             <div className="about-card bg-white dark:bg-gray-800 p-8 rounded-lg shadow-md">
                 <h2 className="text-3xl font-bold mb-4 border-b pb-2">About the Developer</h2>
@@ -391,8 +404,15 @@ const CustomSystemCheckModal = ({ isOpen, onClose, label }) => {
   const [panelW, setPanelW] = useState(400);
   const [result, setResult] = useState(null);
 
-  const dailyLoadWh = useMemo(() => parseFloat(localStorage.getItem('ssc_totalWattHours') || 0), [isOpen]);
-  const sunHours = useMemo(() => parseFloat(localStorage.getItem('ssc_sunHours') || 5), [isOpen]);
+  const [dailyLoadWh, setDailyLoadWh] = useState(() => parseFloat(localStorage.getItem('ssc_totalWattHours') || 0));
+  const [sunHours, setSunHours] = useState(() => parseFloat(localStorage.getItem('ssc_sunHours') || 5));
+
+  useEffect(() => {
+    if (isOpen) {
+      setDailyLoadWh(parseFloat(localStorage.getItem('ssc_totalWattHours') || 0));
+      setSunHours(parseFloat(localStorage.getItem('ssc_sunHours') || 5));
+    }
+  }, [isOpen]);
 
   const batteryWh = batteryAh * batteryV;
   const safeBatteryWh = batteryWh * customCalcSafeguard;
@@ -661,7 +681,7 @@ const BatteryRecommendation = ({ requiredWh, systemVoltage, batteryType }) => {
   );
 };
 
-const SolarPanelRecommendation = ({ solarPanelWatts, winterFactor, batteryType, totalWattHours, totalDayWh, totalNightWh }) => {
+const SolarPanelRecommendation = ({ solarPanelWatts, winterFactor, batteryType, totalDayWh, totalNightWh }) => {
   const panelOptions = [100, 200, 250, 300, 390, 450, 500];
   const requiredWinterWatts = solarPanelWatts * winterFactor;
   return (
@@ -693,7 +713,7 @@ const SolarPanelRecommendation = ({ solarPanelWatts, winterFactor, batteryType, 
   );
 };
 
-const OutputSummary = ({ output, showSafeSpecs, setShowSafeSpecs, handleDownloadPdf, winterFactor }) => {
+const OutputSummary = ({ output, handleDownloadPdf, winterFactor }) => {
   const { totalDayWh, totalNightWh, totalWattHours, totalACWatts, inverterSize, batterySizing, solarPanelWatts, controllerAmps, devices, sunHours, daysOfAutonomy, batteryType, systemVoltage, totalAcWh, totalDcWh } = output;
 
   const allBatteryTypes = Object.keys(batterySizing);
@@ -729,10 +749,7 @@ const OutputSummary = ({ output, showSafeSpecs, setShowSafeSpecs, handleDownload
     }
   };
 
-  const safeSpecs = { days: 3, panelBuffer: 1.3, inverterBuffer: 1.3 };
-  const safeBatteryWh = (totalWattHours * safeSpecs.days) / (0.8 * 0.5);
-  const safePanelWatts = (safeBatteryWh / sunHours) * safeSpecs.panelBuffer;
-  const safeInverterSize = totalACWatts * safeSpecs.inverterBuffer;
+  // Safe-spec helpers removed (not currently displayed). Recompute on demand if UI for Safe Specs is added.
 
   return (
     <div id="output-summary" className="mt-10 p-4 sm:p-8 bg-gray-50 dark:bg-gray-900/50 rounded-lg shadow-xl">
@@ -1161,7 +1178,8 @@ const CalculatorPage = ({ setIsCustomCalcOpen }) => {
     const imgWidth = canvas.width, imgHeight = canvas.height;
     const pdf = new jsPDF('p', 'mm', 'a4');
     const pdfWidth = pdf.internal.pageSize.getWidth(), pdfHeight = pdf.internal.pageSize.getHeight();
-    const ratio = imgWidth / imgHeight; const pdfImgWidth = pdfWidth; const pxPerMm = imgWidth / pdfImgWidth;
+  const pdfImgWidth = pdfWidth;
+  const pxPerMm = imgWidth / pdfImgWidth;
     let heightLeft = imgHeight, position = 0;
     while (heightLeft > 0) {
       const pageCanvas = document.createElement('canvas');

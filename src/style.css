@@ -2,7 +2,7 @@
 
 /* @tweakable Light mode base text color */
 :root {
-  --light-text: #1f2937; /* text-gray-800 */
+  --light-text: #111827; /* stronger text-gray-900 for better contrast in light mode */
   /* @tweakable Light mode background color */
   --light-bg: #f9fafb; /* bg-gray-50 */
   /* @tweakable Light mode color for cards and navbars */
@@ -44,6 +44,58 @@ body {
     background-color: var(--dark-bg);
     color: var(--dark-text);
 }
+
+/* Restore / enforce readable dark-mode text colors in case earlier overrides leaked through. 
+   These are intentionally specific and scoped under .dark so they don't affect light mode. */
+.dark .text-gray-800 { color: var(--dark-text) !important; }
+.dark .text-gray-700 { color: #e5e7eb !important; } /* maps to gray-200 for readability */
+.dark .text-gray-600 { color: #d1d5db !important; } /* maps to gray-300 */
+.dark .text-gray-500 { color: #9ca3af !important; } /* maps to gray-400 */
+.dark .bg-gray-800 ul, .dark .bg-gray-800 li, .dark .bg-gray-800 p { color: var(--dark-text) !important; }
+
+/* Also ensure modal/package and about-card content is readable in dark mode */
+.dark .package-card-anim, .dark .package-card-anim ul, .dark .package-card-anim li, .dark .package-card-anim p,
+.dark .about-card, .dark .about-card ul, .dark .about-card li, .dark .about-card p,
+.dark .max-w-lg { color: var(--dark-text) !important; }
+
+
+
+/* Improve light-mode contrast for some commonly-used Tailwind utility text colors
+   Many components use utility classes like text-gray-600 which can be low-contrast
+   on light backgrounds. These scoped overrides only apply when the root is NOT in dark mode. */
+html:not(.dark) .text-gray-600 { color: #374151 !important; } /* maps closer to gray-700 */
+html:not(.dark) .text-gray-500 { color: #4b5563 !important; } /* maps closer to gray-600 */
+html:not(.dark) .text-gray-700 { color: #1f2937 !important; } /* ensure headings match --light-text */
+
+/* Make the yellow Important/notice block text darker in light mode for contrast */
+html:not(.dark) .bg-yellow-50 { color: #1f2937; }
+html:not(.dark) .bg-yellow-50 p, html:not(.dark) .bg-yellow-50 li, html:not(.dark) .bg-yellow-50 strong, html:not(.dark) .bg-yellow-50 em { color: #1f2937 !important; }
+
+/* Ensure package tiles / modal details use readable text colors in light mode */
+html:not(.dark) .package-card-anim, html:not(.dark) .about-card, html:not(.dark) .PackagesTiles, html:not(.dark) .package-details {
+  color: #111827;
+}
+html:not(.dark) .package-card-anim ul, html:not(.dark) .package-card-anim p, html:not(.dark) .package-card-anim li {
+  color: #374151 !important;
+}
+
+/* Specific override for modal/package details 'download' modal where text used text-gray-800 in JSX */
+html:not(.dark) .package-details-modal, html:not(.dark) .modal-content {
+  color: #1f2937;
+}
+
+/* Ensure text-gray-800 is dark in light mode (covers many headings/labels used in JSX) */
+html:not(.dark) .text-gray-800 { color: #111827 !important; }
+
+/* Ensure elements using bg-white have readable text in light mode */
+/* Targeted readable text for package tiles and package modal in light mode */
+html:not(.dark) .package-card-anim.bg-gray-50, html:not(.dark) .about-card.bg-white, html:not(.dark) .bg-white.max-w-lg {
+  color: var(--light-text) !important;
+}
+html:not(.dark) .package-card-anim ul, html:not(.dark) .package-card-anim li, html:not(.dark) .package-card-anim p, html:not(.dark) .about-card ul, html:not(.dark) .about-card li {
+  color: #374151 !important;
+}
+
 
 .bg-white.dark\:bg-gray-800,
 .bg-gray-50.dark\:bg-gray-700 {
